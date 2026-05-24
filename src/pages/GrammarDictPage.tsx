@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { DOJG_ENTRIES, HJGP_ENTRIES, DOJP_ENTRIES } from '../data/grammarCrossRef';
 import type { DOJGEntry, HJGPEntry, DOJPEntry } from '../data/grammarCrossRef';
+import { getDojgViMeaning } from '../data/grammarCrossRefVi';
 
 // ============================================================================
 // Grammar Dictionary Reference Page
@@ -44,8 +45,10 @@ const GrammarDictPage: React.FC = () => {
       return DOJG_ENTRIES.filter(e => {
         if (volFilter !== 'all' && e.volume !== volFilter) return false;
         if (!q) return true;
+        const viMeaning = getDojgViMeaning(e.english).toLowerCase();
         return e.concept.toLowerCase().includes(q) ||
           e.english.toLowerCase().includes(q) ||
+          viMeaning.includes(q) ||
           e.page.toLowerCase().includes(q);
       });
     }
@@ -177,7 +180,7 @@ const GrammarDictPage: React.FC = () => {
                   {e.subEntry && <div className="text-[10px] text-stone-400">#{e.subEntry}</div>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm text-stone-600">{e.english || '—'}</div>
+                  <div className="text-sm text-stone-600">{getDojgViMeaning(e.english) || '—'}</div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${

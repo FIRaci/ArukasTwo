@@ -1069,7 +1069,7 @@ function tokenizeSentence(text: string, startId: number): { tokens: Token[]; nex
     }
 
     // ── STEP 1: Greedy longest-match from vocab DB ──
-    let maxSpan = Math.min(scanMax, textLen - pos);
+    const maxSpan = Math.min(scanMax, textLen - pos);
     let bestHit: { entry: VocabHit; len: number } | null = null;
     for (let len = maxSpan; len >= 1; len--) {
       const substr = text.substring(pos, pos + len);

@@ -390,7 +390,9 @@ const DictionaryPage: React.FC = () => {
   const [isDictLoading, setIsDictLoading] = useState(false);
 
   // ── Derived ──
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const allTags = useMemo(() => getAllTags(), [isDictLoaded]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const allTypes = useMemo(() => getAllTypes(), [isDictLoaded]);
 
   // Persist bookmarks
@@ -451,6 +453,7 @@ const DictionaryPage: React.FC = () => {
       );
     }
     return data;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level, debouncedSearch, typeFilter, tagFilter, showBookmarksOnly, bookmarks, isDictLoaded]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));

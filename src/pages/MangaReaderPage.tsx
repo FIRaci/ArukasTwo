@@ -288,7 +288,7 @@ const MangaReaderPage: React.FC = () => {
     }
     setIsAnalyzing(false);
     setProgressMsg(null);
-  }, [pages, characters]);
+  }, [pages, characters, mangaTitle]);
 
   // --- Session save/load ---
   const handleSaveSession = useCallback(async () => {
@@ -411,7 +411,7 @@ const MangaReaderPage: React.FC = () => {
 
       {/* Floating navbar reveal button */}
       <button
-        onClick={() => { setNavbarHidden(false); try { localStorage.setItem('arukas_navbar_hidden', 'false'); } catch {} }}
+        onClick={() => { setNavbarHidden(false); try { localStorage.setItem('arukas_navbar_hidden', 'false'); } catch (e) { console.error(e); } }}
         className={`fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur border border-stone-200 shadow-lg text-stone-500 hover:text-rose-500 hover:bg-white transition-all duration-300 ${navbarHidden ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}
         title="Hiện thanh điều hướng"
       >
@@ -459,7 +459,7 @@ const MangaReaderPage: React.FC = () => {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><circle cx="12" cy="12" r="3" /></svg>
               </button>
               {/* Navbar hide button */}
-              <button onClick={() => { setNavbarHidden(true); try { localStorage.setItem('arukas_navbar_hidden', 'true'); } catch {} }} className="p-1.5 rounded-lg text-stone-400 hover:text-rose-500 hover:bg-stone-100 transition-all" title="Ẩn thanh điều hướng" aria-label="Ẩn thanh điều hướng">
+              <button onClick={() => { setNavbarHidden(true); try { localStorage.setItem('arukas_navbar_hidden', 'true'); } catch (e) { console.error(e); } }} className="p-1.5 rounded-lg text-stone-400 hover:text-rose-500 hover:bg-stone-100 transition-all" title="Ẩn thanh điều hướng" aria-label="Ẩn thanh điều hướng">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>
               </button>
           </div>
@@ -480,7 +480,7 @@ const MangaReaderPage: React.FC = () => {
           {/* Hero toggle */}
           <div className="flex justify-center mb-2">
             <button
-              onClick={() => setHeroCollapsed(prev => { const next = prev === null ? true : prev ? false : true; try { localStorage.setItem('arukas_hero_collapsed', String(next)); } catch {} return next; })}
+              onClick={() => setHeroCollapsed(prev => { const next = prev === null ? true : prev ? false : true; try { localStorage.setItem('arukas_hero_collapsed', String(next)); } catch (e) { console.error(e); } return next; })}
               className="group flex items-center gap-1.5 text-[11px] text-stone-400 hover:text-rose-500 transition-all px-3 py-1 rounded-full hover:bg-rose-50 border border-transparent hover:border-rose-200"
               title={isHidden ? 'Hiện tiêu đề' : 'Ẩn tiêu đề'}
             >

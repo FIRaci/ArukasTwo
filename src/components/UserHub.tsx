@@ -325,7 +325,7 @@ const UserHub: React.FC<Props> = ({
              onSelectGrammar(selectedItem as SavedGrammar);
           }
       }
-  }, [selectedItem?.id, activeTab]); 
+  }, [selectedItem, activeTab, onSelectItem, onSelectGrammar]); 
 
   const handleSelect = (item: SavedToken | SavedGrammar) => {
       setSelectedItemId(item.id);

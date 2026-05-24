@@ -288,7 +288,7 @@ const schema = {
 const SYSTEM_INSTRUCTION = `You are a Japanese Sentence Surgeon optimized for Vietnamese learners.
 
 TASK:
-1. **TARGET LANGUAGE**: All output MUST be in **VIETNAMESE** (Tiếng Việt).
+1. **TARGET LANGUAGE**: All output, translations, meanings, token roles, and grammatical explanations MUST be strictly in **VIETNAMESE** (Tiếng Việt) only. Do NOT include any English translations.
 
 2. **PITCH ACCENT (STRICT RULES)**: 
    - **CONTEXT IS KING**: The \`pitchAccent\` field MUST represent the pitch of the word **AS IT IS CONJUGATED** in the sentence. 
@@ -344,7 +344,7 @@ const vocabSchema = {
     properties: {
         canonicalForm: { type: Type.STRING, description: "The standard Japanese written form (Kanji/Kana) for this word. IMPORTANT: If input is Romaji (e.g. 'kokyou'), convert it here (e.g. '故郷')." },
         type: { type: Type.STRING, enum: ['NOUN', 'VERB', 'ADJECTIVE', 'PARTICLE', 'OTHER'], description: "The correct Part of Speech of this word." },
-        definitionDetail: { type: Type.STRING, description: "Detailed definition in Vietnamese" },
+        definitionDetail: { type: Type.STRING, description: "Detailed definition in Vietnamese (Tiếng Việt) only. NEVER output English." },
         transitivity: { 
             type: Type.STRING, 
             enum: ['TRANSITIVE', 'INTRANSITIVE', 'BOTH', 'N/A'],
@@ -404,13 +404,13 @@ const vocabSchema = {
         synonyms: {
             type: Type.ARRAY,
             nullable: true,
-            description: "List of synonyms (Từ đồng nghĩa).",
+            description: "List of synonyms (Từ đồng nghĩa). All meaning fields MUST be in Vietnamese (Tiếng Việt) only. NEVER output English.",
             items: {
                 type: Type.OBJECT,
                 properties: {
                     text: { type: Type.STRING },
                     reading: { type: Type.STRING },
-                    meaning: { type: Type.STRING },
+                    meaning: { type: Type.STRING, description: "Meaning in Vietnamese (Tiếng Việt) only. NEVER output English." },
                     type: { type: Type.STRING, nullable: true }
                 }
             }
@@ -418,13 +418,13 @@ const vocabSchema = {
         antonyms: {
             type: Type.ARRAY,
             nullable: true,
-            description: "List of antonyms (Từ trái nghĩa).",
+            description: "List of antonyms (Từ trái nghĩa). All meaning fields MUST be in Vietnamese (Tiếng Việt) only. NEVER output English.",
             items: {
                 type: Type.OBJECT,
                 properties: {
                     text: { type: Type.STRING },
                     reading: { type: Type.STRING },
-                    meaning: { type: Type.STRING },
+                    meaning: { type: Type.STRING, description: "Meaning in Vietnamese (Tiếng Việt) only. NEVER output English." },
                     type: { type: Type.STRING, nullable: true }
                 }
             }
@@ -432,13 +432,13 @@ const vocabSchema = {
         relatedForms: {
             type: Type.ARRAY,
             nullable: true,
-            description: "Related word forms (e.g. Noun form of a Verb, Adverb form of an Adjective, etc).",
+            description: "Related word forms (e.g. Noun form of a Verb, Adverb form of an Adjective, etc). All meaning fields MUST be in Vietnamese (Tiếng Việt) only. NEVER output English.",
             items: {
                 type: Type.OBJECT,
                 properties: {
                     text: { type: Type.STRING },
                     reading: { type: Type.STRING },
-                    meaning: { type: Type.STRING },
+                    meaning: { type: Type.STRING, description: "Meaning in Vietnamese (Tiếng Việt) only. NEVER output English." },
                     type: { type: Type.STRING, description: "Type description (e.g. 'Danh từ hóa', 'Trạng từ', 'Thể rút gọn')" }
                 }
             }
@@ -446,13 +446,13 @@ const vocabSchema = {
         collocations: {
             type: Type.ARRAY,
             nullable: true,
-            description: "Common collocations, compound words, or set phrases using this word.",
+            description: "Common collocations, compound words, or set phrases using this word. All meaning fields MUST be in Vietnamese (Tiếng Việt) only. NEVER output English.",
             items: {
                 type: Type.OBJECT,
                 properties: {
                     text: { type: Type.STRING },
                     reading: { type: Type.STRING },
-                    meaning: { type: Type.STRING },
+                    meaning: { type: Type.STRING, description: "Meaning in Vietnamese (Tiếng Việt) only. NEVER output English." },
                     type: { type: Type.STRING, nullable: true }
                 }
             }
@@ -460,7 +460,7 @@ const vocabSchema = {
         kanjiDetails: {
             type: Type.ARRAY,
             nullable: true,
-            description: "Detailed breakdown of each Kanji character in the word.",
+            description: "Detailed breakdown of each Kanji character in the word. All meanings MUST be in Vietnamese (Tiếng Việt) only. NEVER output English.",
             items: {
                 type: Type.OBJECT,
                 properties: {
@@ -468,20 +468,20 @@ const vocabSchema = {
                     hanViet: { type: Type.STRING, description: "Sino-Vietnamese reading (e.g. 'THỰC')" },
                     onyomi: { type: Type.ARRAY, items: { type: Type.STRING }, description: "On-yomi readings (Katakana)" },
                     kunyomi: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Kun-yomi readings (Hiragana)" },
-                    meaning: { type: Type.STRING, description: "Meaning of the single character" }
+                    meaning: { type: Type.STRING, description: "Meaning of the single character in Vietnamese (Tiếng Việt) only. NEVER output English." }
                 }
             }
         },
         candidates: {
             type: Type.ARRAY,
             nullable: true,
-            description: "If the input is ambiguous Romaji or Hiragana (e.g. 'hashi', 'kaku'), provide the most common Kanji homophones here (e.g. 箸, 橋, 端).",
+            description: "If the input is ambiguous Romaji or Hiragana (e.g. 'hashi', 'kaku'), provide the most common Kanji homophones here (e.g. 箸, 橋, 端). All meanings MUST be in Vietnamese (Tiếng Việt) only. NEVER output English.",
             items: {
                 type: Type.OBJECT,
                 properties: {
                     text: { type: Type.STRING, description: "The Kanji form (e.g. 箸)" },
                     reading: { type: Type.STRING, description: "The reading (e.g. はし)" },
-                    meaning: { type: Type.STRING, description: "Short meaning (e.g. Đũa)" },
+                    meaning: { type: Type.STRING, description: "Short meaning in Vietnamese (Tiếng Việt) only. NEVER output English." },
                     type: { type: Type.STRING, description: "Word type (NOUN, VERB...)" }
                 }
             }
@@ -498,7 +498,7 @@ const grammarSchema = {
         hanViet: { type: Type.STRING, nullable: true, description: "Sino-Vietnamese reading of any Kanji in the structure." },
         jlpt: { type: Type.STRING, nullable: true, description: "JLPT Level (e.g. N2, N3)." },
         tags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Tags (e.g. 'Formal', 'Spoken', 'Politics', 'Economy', 'Science')." },
-        generalMeaning: { type: Type.STRING, description: "General meaning of the grammar point." },
+        generalMeaning: { type: Type.STRING, description: "General meaning of the grammar point in Vietnamese (Tiếng Việt) only. NEVER output English." },
         constructionRules: { 
             type: Type.ARRAY, 
             items: { type: Type.STRING },
@@ -529,12 +529,12 @@ const grammarSchema = {
         breakdown: {
             type: Type.ARRAY,
             nullable: true,
-            description: "Dissect the structure into atomic parts. IMPORTANT: Be specific about forms. If it uses Plain Form, say 'Plain Form (Futsuu-kei)' instead of just 'Verb'.",
+            description: "Dissect the structure into atomic parts. IMPORTANT: Be specific about forms. If it uses Plain Form, say 'Plain Form (Futsuu-kei)' instead of just 'Verb'. All meaning fields MUST be in Vietnamese (Tiếng Việt) only. NEVER output English.",
             items: {
                 type: Type.OBJECT,
                 properties: {
                     part: { type: Type.STRING },
-                    meaning: { type: Type.STRING },
+                    meaning: { type: Type.STRING, description: "Meaning of this part in Vietnamese (Tiếng Việt) only. NEVER output English." },
                     role: { type: Type.STRING }
                 }
             }
@@ -859,7 +859,7 @@ export const enrichVocabulary = async (word: string, type: string): Promise<Exte
                 
                 **FOCUS ON**: conjugations, pitch accent, transitivity, relatedForms, collocations — these are the HIGH VALUE fields not available locally.
 
-                Output in **Vietnamese**.`,
+                Output MUST be strictly in **Vietnamese** (Tiếng Việt) only. Do NOT include any English translations.`,
                 responseMimeType: "application/json",
                 responseSchema: vocabSchema,
                 thinkingConfig: { thinkingBudget: 0 },
@@ -927,7 +927,7 @@ export const enrichGrammar = async (grammar: string): Promise<ExtendedGrammarAna
             model: 'gemini-2.5-flash',
             contents: [{ text: `Provide detailed grammar analysis for the structure: ${grammar}${contextHint}` }],
             config: {
-                systemInstruction: `You are a Japanese Grammar expert (Bunpou). Output in Vietnamese.
+                systemInstruction: `You are a Japanese Grammar expert (Bunpou). Output strictly in Vietnamese (Tiếng Việt) only. Do NOT include any English translations.
                 
                 **MANDATORY REQUIREMENTS:**
                 1. **Variations**: If the grammar point has MULTIPLE distinct meanings (e.g. 'You ni' = 'So that' OR 'Request' OR 'Hope'), you **MUST** split them into the \`variations\` array.
@@ -996,7 +996,7 @@ export const generateComparison = async (query: string): Promise<ComparisonResul
                 systemInstruction: `You are a Japanese language expert. Compare the requested terms deeply.
                 Identify if this is a comparison of PARTICLES, HOMOPHONES, GRAMMAR, or VOCABULARY nuances.
                 Provide key distinctions, usage contexts, collocations, and scenarios.
-                Output in Vietnamese.`,
+                Output strictly in Vietnamese (Tiếng Việt) only. Do NOT include any English translations.`,
                 responseMimeType: "application/json",
                 responseSchema: comparisonSchema,
                 thinkingConfig: { thinkingBudget: 0 },
@@ -1022,7 +1022,7 @@ export const getRecommendationsByTag = async (tagName: string, currentItems: str
             config: {
                 systemInstruction: `Bạn là chuyên gia ngôn ngữ Nhật. Hãy gợi ý 5 mục (từ vựng hoặc ngữ pháp) chất lượng cao liên quan đến chủ đề/tag được yêu cầu.
                 Mỗi mục bao gồm: text (Kanji/Kana), reading (Hiragana), meaning (Tiếng Việt), hanViet (nếu có), type (VOCAB hoặc GRAMMAR), partType (NOUN/VERB/ADJECTIVE...).
-                Đảm bảo các mục gợi ý hữu ích cho người học. Output: JSON Array.`,
+                Đảm bảo các mục gợi ý và giải thích hữu ích cho người học và HOÀN TOÀN bằng Tiếng Việt, không chứa tiếng Anh. Output: JSON Array.`,
                 responseMimeType: "application/json",
                 responseSchema: recommendationSchema,
                 thinkingConfig: { thinkingBudget: 0 },
@@ -1049,7 +1049,7 @@ export const addItemsToComparison = async (existingItems: ComparisonItem[], newQ
             config: {
                 systemInstruction: `You are a Japanese expert. Analyze the new terms provided and structure them exactly like the existing comparison items.
                 Focus on how they contrast with the existing group.
-                Output in Vietnamese.`,
+                Output strictly in Vietnamese (Tiếng Việt) only. Do NOT include any English.`,
                 responseMimeType: "application/json",
                 responseSchema: itemsSchema,
                 thinkingConfig: { thinkingBudget: 0 },

@@ -285,7 +285,7 @@ const SentenceBlock: React.FC<Props> = ({ block, onToggleSave, isSaved, onToggle
   };
 
   const formatTagLabel = (tag: string) => {
-    let label = tag.replace('JLPT ', '').replace('Category: ', '').replace('Entity: ', '');
+    const label = tag.replace('JLPT ', '').replace('Category: ', '').replace('Entity: ', '');
     
     // Richer Mapping including Macro Topics
     const translations: {[key: string]: string} = {
