@@ -134,6 +134,15 @@ export async function clearAllHistory(): Promise<void> {
   await del(KEYS.HISTORY);
 }
 
+export async function clearAllLocalData(): Promise<void> {
+  await Promise.all([
+    del(KEYS.WORDS),
+    del(KEYS.GRAMMAR),
+    del(KEYS.COMPARISONS),
+    del(KEYS.HISTORY),
+  ]);
+}
+
 // ── BACKUP & RESTORE ──
 export async function exportAllLocalData(): Promise<string> {
   const words = (await get<SavedWord[]>(KEYS.WORDS)) || [];

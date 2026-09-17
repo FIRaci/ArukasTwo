@@ -33,53 +33,6 @@ import {
 } from '../services/localDbService';
 import { useNavigate } from 'react-router-dom';
 
-const SAMPLE_SENTENCES: Record<LanguageCode, { text: string; label: string }[]> = {
-  vi: [
-    { text: 'Mùa xuân đến, những bông hoa đào nở rộ trên khắp nẻo đường Hà Nội.', label: 'Văn chương' },
-    { text: 'Tôi muốn tìm hiểu thêm về kiến trúc và văn hóa của vùng đất này.', label: 'Giao tiếp' },
-  ],
-  ja: [
-    { text: '桜の花びらが春の柔らかな風に吹かれて舞い落ちていきます。', label: 'Mùa hoa anh đào' },
-    { text: '日本の伝統的な建築は自然との調和を最も大切にしています。', label: 'Văn hóa kiến trúc' },
-  ],
-  ko: [
-    { text: '봄비가 내린 후 남산 타워 주변의 벚꽃이 활짝 피었습니다.', label: 'Mưa xuân Namsan' },
-    { text: '한국의 전통 차 문화는 마음을 정돈하는 데 도움을 줍니다.', label: 'Trà đạo' },
-  ],
-  zh: [
-    { text: '江南的三月，烟雨蒙蒙，柳树已经抽出了嫩绿的枝条。', label: 'Giang Nam ba tháng' },
-    { text: '在快速发展的现代社会中，保持内心的平静尤为重要。', label: 'Triết lý đời sống' },
-  ],
-  ru: [
-    { text: 'Зимний вечер опустился на старинные улочки Санкт-Петербурга.', label: 'Mùa đông nước Nga' },
-    { text: 'Чтение классической литературы помогает глубже понять человеческую душу.', label: 'Văn học cổ điển' },
-  ],
-  en: [
-    { text: 'The gentle morning mist rolled quietly across the ancient stone bridge.', label: 'Descriptive narrative' },
-    { text: 'Understanding subtle cultural nuances is key to mastering any foreign language.', label: 'Linguistic advice' },
-  ],
-  es: [
-    { text: 'Las tardes de verano en Sevilla se llenan del aroma de los azahares en flor.', label: 'Hương vị Sevilla' },
-    { text: 'La música flamenca expresa la pasión y las profundas emociones del pueblo andaluz.', label: 'Nghệ thuật Flamenco' },
-  ],
-  fr: [
-    { text: 'Le ciel de Paris au crépuscule se teinte de reflets dorés et violets.', label: 'Hoàng hôn Paris' },
-    { text: 'La gastronomie française est un patrimoine culturel mondialement reconnu.', label: 'Ẩm thực Pháp' },
-  ],
-  it: [
-    { text: 'Passeggiare per i vicoli storici di Firenze è come viaggiare indietro nel tempo.', label: 'Vẻ đẹp Florence' },
-    { text: 'Il caffè espresso in Italia è un vero e proprio rituale quotidiano.', label: 'Văn hóa Espresso' },
-  ],
-  de: [
-    { text: 'Im Herbst färben sich die Blätter der alten Eichen im Schwarzwald golden.', label: 'Mùa thu Rừng Đen' },
-    { text: 'Die deutsche Philosophie hat das moderne europäische Denken nachhaltig geprägt.', label: 'Triết học Đức' },
-  ],
-  pt: [
-    { text: 'O som melancólico do fado ecoa pelas ruas estreitas de Alfama em Lisboa.', label: 'Fado Lisbon' },
-    { text: 'A hospitalidade das pessoas torna qualquer viagem a Portugal inesquecível.', label: 'Văn hóa Bồ Đào Nha' },
-  ],
-};
-
 const POS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   NOUN: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
   VERB: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
@@ -108,7 +61,7 @@ export const AnalyzePage: React.FC = () => {
     currentThemeConfig,
   } = useSettings();
 
-  const [inputText, setInputText] = useState('桜の花びらが春の柔らかな風に吹かれて舞い落ちていきます。');
+  const [inputText, setInputText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<TextAnalysisResult | null>(null);
   const [selectedToken, setSelectedToken] = useState<AnalysisToken | null>(null);
@@ -223,9 +176,6 @@ export const AnalyzePage: React.FC = () => {
     }
   };
 
-  const currentSampleLang = (sourceLang === 'auto' ? 'ja' : sourceLang) as LanguageCode;
-  const samples = SAMPLE_SENTENCES[currentSampleLang] || SAMPLE_SENTENCES.vi;
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
       {/* ── TOP STUDIO HERO ── */}
@@ -319,24 +269,6 @@ export const AnalyzePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Samples Chips */}
-            <div className="space-y-1.5">
-              <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
-                Câu mẫu thử nhanh:
-              </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {samples.map((s, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setInputText(s.text)}
-                    className="px-2.5 py-1 text-xs rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium transition active:scale-95"
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Primary Action Button */}
             <button

@@ -9,6 +9,7 @@ import {
   Download,
   Upload,
   AlertCircle,
+  AlertTriangle,
   Check,
   Split,
   Database,
@@ -27,118 +28,16 @@ import {
 import {
   getSavedWords,
   deleteWordItem,
-  saveWordItem,
   getSavedGrammar,
   deleteGrammarItem,
-  saveGrammarItem,
   getSavedComparisons,
   saveComparisonItem,
   deleteComparisonItem,
   exportAllLocalData,
   importLocalData,
+  clearAllLocalData,
 } from '../services/localDbService';
 import { compareTermsWithOllama } from '../services/ollamaService';
-
-// High-quality multilingual starter seed items
-const STARTER_SEED_WORDS: SavedWord[] = [
-  {
-    id: 'starter_word_1',
-    text: '桜 (さくら)',
-    reading: 'sakura',
-    meaning: 'Hoa anh đào - biểu tượng của vẻ đẹp mong manh và sự tái sinh',
-    pos: 'NOUN',
-    lang: 'ja',
-    targetLang: 'vi',
-    contextSentence: '桜の花びらが春の風に吹かれて舞い落ちていきます。',
-    tags: ['Thiên nhiên', 'Nhật Bản'],
-    savedAt: Date.now() - 1000 * 60 * 60 * 2,
-    notes: 'Từ vựng cốt lõi của văn hóa Nhật Bản',
-  },
-  {
-    id: 'starter_word_2',
-    text: '봄비',
-    reading: 'bombi',
-    meaning: 'Cơn mưa xuân tưới mát vạn vật đầu năm',
-    pos: 'NOUN',
-    lang: 'ko',
-    targetLang: 'vi',
-    contextSentence: '봄비가 내린 후 온 세상이 푸르게 깨어납니다.',
-    tags: ['Thời tiết', 'Hàn Quốc'],
-    savedAt: Date.now() - 1000 * 60 * 60 * 4,
-  },
-  {
-    id: 'starter_word_3',
-    text: '烟雨 (yānyǔ)',
-    reading: 'yānyǔ',
-    meaning: 'Mưa bụi mờ ảo như sương khói vùng Giang Nam',
-    pos: 'NOUN',
-    lang: 'zh',
-    targetLang: 'vi',
-    contextSentence: '江南的三月，烟雨蒙蒙，柳树抽出了嫩芽。',
-    tags: ['Văn học', 'Trung Quốc'],
-    savedAt: Date.now() - 1000 * 60 * 60 * 6,
-  },
-  {
-    id: 'starter_word_4',
-    text: 'Serendipity',
-    reading: '/ˌser.ənˈdɪp.ə.t̬i/',
-    meaning: 'Sự tình cờ may mắn tìm thấy điều tốt đẹp ngoài dự tính',
-    pos: 'NOUN',
-    lang: 'en',
-    targetLang: 'vi',
-    contextSentence: 'Finding this peaceful library was pure serendipity.',
-    tags: ['Tâm lý', 'Tiếng Anh'],
-    savedAt: Date.now() - 1000 * 60 * 60 * 8,
-  },
-  {
-    id: 'starter_word_5',
-    text: 'Зимний вечер',
-    reading: 'Zimniy vecher',
-    meaning: 'Buổi chiều tối mùa đông êm đềm nước Nga',
-    pos: 'NOUN',
-    lang: 'ru',
-    targetLang: 'vi',
-    contextSentence: 'Зимний вечер тихо опустился на старый Петербург.',
-    tags: ['Mùa đông', 'Nga'],
-    savedAt: Date.now() - 1000 * 60 * 60 * 10,
-  },
-];
-
-const STARTER_SEED_GRAMMAR: SavedGrammar[] = [
-  {
-    id: 'starter_gram_1',
-    structure: '〜ていく (te iku)',
-    reading: 'te iku',
-    meaning: 'Diễn tả hành động tiếp tục tiếp diễn hướng về tương lai, hoặc xa dần khỏi người nói',
-    formula: 'V-te + iku',
-    explanation: 'Dùng khi hành động biến đổi dần dần từ hiện tại tiến tới tương lai (vd: ấm dần lên, trôi đi xa).',
-    lang: 'ja',
-    targetLang: 'vi',
-    tags: ['JLPT N4', 'Ngữ pháp động từ'],
-    savedAt: Date.now() - 1000 * 60 * 60 * 3,
-  },
-  {
-    id: 'starter_gram_2',
-    structure: '〜(으)ㄹ수록',
-    reading: '-(eu)l surok',
-    meaning: 'Càng... thì càng... (Tỷ lệ thuận)',
-    formula: 'V/A + (으)ㄹ수록',
-    explanation: 'Biểu thị mức độ của vế trước tăng lên thì kết quả ở vế sau cũng gia tăng tương ứng.',
-    lang: 'ko',
-    targetLang: 'vi',
-    tags: ['TOPIK II', 'Cấu trúc liên kết'],
-    savedAt: Date.now() - 1000 * 60 * 60 * 5,
-  },
-];
-
-const COMPARISON_PRESETS = [
-  { lang: 'ja' as LanguageCode, a: 'は (wa)', b: 'が (ga)', title: 'Chủ đề (は) vs Chủ ngữ tiêu điểm (が)' },
-  { lang: 'ja' as LanguageCode, a: 'きれい', b: 'うつくしい', title: 'Đẹp thanh lịch (Kirei) vs Đẹp cao quý (Utsukushii)' },
-  { lang: 'es' as LanguageCode, a: 'por', b: 'para', title: 'Nguyên nhân (Por) vs Mục đích hướng tới (Para)' },
-  { lang: 'fr' as LanguageCode, a: 'connaître', b: 'savoir', title: 'Quen biết người/vật (Connaître) vs Biết sự thật/kỹ năng (Savoir)' },
-  { lang: 'en' as LanguageCode, a: 'make', b: 'do', title: 'Tạo ra sản phẩm mới (Make) vs Thực hiện hành động/bổn phận (Do)' },
-  { lang: 'vi' as LanguageCode, a: 'quá', b: 'lắm', title: 'Cảm thán mức độ: Quá (trước/sau tính từ) vs Lắm (đứng sau tính từ)' },
-];
 
 export const HubPage: React.FC = () => {
   const {
@@ -160,8 +59,8 @@ export const HubPage: React.FC = () => {
   // Nuance Arena state
   const [arenaLang, setArenaLang] = useState<LanguageCode>('ja');
   const [arenaTargetLang, setArenaTargetLang] = useState<LanguageCode>('vi');
-  const [termA, setTermA] = useState('は');
-  const [termB, setTermB] = useState('が');
+  const [termA, setTermA] = useState('');
+  const [termB, setTermB] = useState('');
   const [isComparing, setIsComparing] = useState(false);
   const [activeComparison, setActiveComparison] = useState<SavedComparison | null>(null);
   const [arenaError, setArenaError] = useState<string | null>(null);
@@ -184,16 +83,14 @@ export const HubPage: React.FC = () => {
     loadData();
   }, []);
 
-  const handleSeedStarterPack = async () => {
-    for (const w of STARTER_SEED_WORDS) {
-      await saveWordItem(w);
+  const handleClearAllData = async () => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa toàn bộ từ vựng, ngữ pháp và lịch sử so sánh? Toàn bộ dữ liệu trong IndexedDB sẽ được xóa sạch.')) {
+      await clearAllLocalData();
+      await loadData();
+      setActiveComparison(null);
+      setBackupMessage('Đã làm sạch toàn bộ dữ liệu cục bộ!');
+      setTimeout(() => setBackupMessage(null), 3500);
     }
-    for (const g of STARTER_SEED_GRAMMAR) {
-      await saveGrammarItem(g);
-    }
-    await loadData();
-    setBackupMessage('Đã nạp thành công bộ từ vựng & ngữ pháp mẫu khởi động!');
-    setTimeout(() => setBackupMessage(null), 3500);
   };
 
   const handleSpeak = (text: string, lang: LanguageCode) => {
@@ -347,17 +244,6 @@ export const HubPage: React.FC = () => {
               Toàn bộ dữ liệu được mã hóa và lưu trữ 100% trong trình duyệt qua IndexedDB, không cần đám mây hay tài khoản.
             </p>
           </div>
-
-          {/* Quick Action Seed Button */}
-          {words.length === 0 && (
-            <button
-              onClick={handleSeedStarterPack}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm hover:shadow-md transition active:scale-95 flex-shrink-0"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Nạp Gói Khởi Động Mẫu (Seed Pack)</span>
-            </button>
-          )}
         </div>
 
         {/* ── 4 BENTO KPI CARDS ── */}
@@ -668,24 +554,17 @@ export const HubPage: React.FC = () => {
               })}
             </div>
           ) : (
-            /* Rich Empty State with Action */
-            <div className="p-12 text-center border-2 border-dashed border-stone-200 rounded-3xl bg-white/70 space-y-4 max-w-lg mx-auto shadow-xs">
+            /* Rich Empty State without sample seed */
+            <div className="p-12 text-center border-2 border-dashed border-stone-200 rounded-3xl bg-white/70 space-y-3 max-w-lg mx-auto shadow-xs">
               <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
                 <Bookmark className="w-7 h-7" />
               </div>
               <div className="space-y-1">
                 <h3 className="text-base font-bold text-stone-800">Kho từ vựng đang trống</h3>
                 <p className="text-xs text-stone-400 max-w-sm mx-auto">
-                  Bạn có thể bấm vào biểu tượng bookmark khi phân tích câu, hoặc nạp ngay bộ từ vựng mẫu để trải nghiệm.
+                  Hãy phân tích câu trong studio hoặc tài liệu hình ảnh để lưu các từ vựng bạn yêu thích vào đây.
                 </p>
               </div>
-              <button
-                onClick={handleSeedStarterPack}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition active:scale-95"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Nạp 5 từ mẫu đa ngôn ngữ</span>
-              </button>
             </div>
           )}
         </div>
@@ -744,23 +623,16 @@ export const HubPage: React.FC = () => {
               })}
             </div>
           ) : (
-            <div className="p-12 text-center border-2 border-dashed border-stone-200 rounded-3xl bg-white/70 space-y-4 max-w-lg mx-auto shadow-xs">
+            <div className="p-12 text-center border-2 border-dashed border-stone-200 rounded-3xl bg-white/70 space-y-3 max-w-lg mx-auto shadow-xs">
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
                 <BookOpen className="w-7 h-7" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-stone-800">Chưa có công thức ngữ pháp nào</h3>
+                <h3 className="text-base font-bold text-stone-800">Kho ngữ pháp đang trống</h3>
                 <p className="text-xs text-stone-400 max-w-sm mx-auto">
-                  Các cấu trúc ngữ pháp được bóc tách từ câu sẽ hiển thị ở đây để bạn dễ dàng ôn tập.
+                  Các cấu trúc ngữ pháp được bóc tách từ câu phân tích sẽ hiển thị ở đây để bạn dễ dàng ôn tập.
                 </p>
               </div>
-              <button
-                onClick={handleSeedStarterPack}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition active:scale-95"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Nạp cấu trúc mẫu</span>
-              </button>
             </div>
           )}
         </div>
@@ -861,23 +733,7 @@ export const HubPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Presets */}
-            <div className="flex items-center gap-2 flex-wrap pt-1">
-              <span className="text-xs font-semibold text-stone-400">Gợi ý đối đầu:</span>
-              {COMPARISON_PRESETS.map((p, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setArenaLang(p.lang);
-                    setTermA(p.a);
-                    setTermB(p.b);
-                  }}
-                  className="px-2.5 py-1 text-xs font-medium rounded-full bg-stone-100 hover:bg-purple-100 hover:text-purple-700 text-stone-600 transition"
-                >
-                  {p.a} ⚔️ {p.b}
-                </button>
-              ))}
-            </div>
+
 
             {/* CTA Button */}
             <div className="flex items-center justify-between pt-2">
@@ -1057,6 +913,24 @@ export const HubPage: React.FC = () => {
               </div>
               <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
             </label>
+          </div>
+
+          {/* Clean Reset Database Zone */}
+          <div className="pt-4 border-t border-stone-200 text-center space-y-3">
+            <div className="text-xs font-bold uppercase tracking-wider text-rose-500 flex items-center justify-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Khu Vực Quản Trị / Làm Sạch Dữ Liệu</span>
+            </div>
+            <p className="text-xs text-stone-500 max-w-md mx-auto">
+              Bấm nút bên dưới để dọn sạch toàn bộ từ vựng, cấu trúc ngữ pháp và so sánh đã lưu trong trình duyệt.
+            </p>
+            <button
+              onClick={handleClearAllData}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition active:scale-95 shadow-2xs"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span>Xóa Sạch Dữ Liệu (Reset Clean Slate)</span>
+            </button>
           </div>
         </div>
       )}

@@ -22,28 +22,6 @@ import {
 import { analyzeImageMultimodal } from '../services/ollamaService';
 import { saveWordItem } from '../services/localDbService';
 
-// Sample presets for quick testing
-const SAMPLE_PRESETS = [
-  {
-    title: 'Manga Lãng Mạn (Japanese)',
-    lang: 'ja' as LanguageCode,
-    description: 'Trang manga đối thoại giữa 2 nhân vật dưới cây hoa anh đào',
-    svgData: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="%23fdfbf7"/><rect x="40" y="30" width="520" height="340" fill="none" stroke="%23333" stroke-width="4"/><circle cx="200" cy="180" r="70" fill="%23fee2e2"/><path d="M 280 80 Q 360 60 480 100 Q 510 140 450 170 Q 380 180 340 150 Z" fill="%23ffffff" stroke="%23222" stroke-width="2"/><text x="320" y="115" font-family="sans-serif" font-size="16" font-weight="bold" fill="%23111">ずっと君のことが</text><text x="325" y="145" font-family="sans-serif" font-size="16" font-weight="bold" fill="%23111">好きだったんだ。</text><rect x="60" y="270" width="480" height="80" fill="%23ffffff" stroke="%23222" stroke-width="1.5"/><text x="80" y="315" font-family="sans-serif" font-size="15" fill="%23444">春の風が静かに吹き抜けていった。</text></svg>`,
-  },
-  {
-    title: 'Biển Hiệu Hàn Quốc (Korean)',
-    lang: 'ko' as LanguageCode,
-    description: 'Biển báo ẩm thực truyền thống ở phố Myeongdong',
-    svgData: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="%231e293b"/><rect x="50" y="50" width="500" height="300" rx="16" fill="%23334155" stroke="%23f59e0b" stroke-width="4"/><text x="300" y="150" text-anchor="middle" font-family="sans-serif" font-size="36" font-weight="bold" fill="%23fef08a">전통 전주 비빔밥</text><text x="300" y="210" text-anchor="middle" font-family="sans-serif" font-size="20" fill="%23cbd5e1">따뜻하고 건강한 한 끼 식사</text><text x="300" y="270" text-anchor="middle" font-family="sans-serif" font-size="16" fill="%2338bdf8">영업시간: 10:00 - 22:00 (연중무휴)</text></svg>`,
-  },
-  {
-    title: 'Thư Pháp Trung Hoa (Chinese)',
-    lang: 'zh' as LanguageCode,
-    description: 'Tranh chữ cổ điển về sự kiên định và yên bình',
-    svgData: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="%23f7f2ea"/><rect x="80" y="40" width="440" height="320" fill="none" stroke="%2378350f" stroke-width="2"/><text x="300" y="140" text-anchor="middle" font-family="serif" font-size="42" font-weight="bold" fill="%231c1917">静以修身 俭以养德</text><text x="300" y="210" text-anchor="middle" font-family="sans-serif" font-size="18" fill="%2378716c">非淡泊无以明志，非宁静无以致远</text><rect x="420" y="250" width="40" height="60" fill="%23b91c1c"/><text x="440" y="290" text-anchor="middle" font-family="sans-serif" font-size="18" fill="%23fff">诸葛</text></svg>`,
-  },
-];
-
 export const MediaPage: React.FC = () => {
   const {
     sourceLang,
@@ -58,7 +36,7 @@ export const MediaPage: React.FC = () => {
   } = useSettings();
 
   const [activeTab, setActiveTab] = useState<'image' | 'video'>('image');
-  const [selectedImage, setSelectedImage] = useState<string | null>(SAMPLE_PRESETS[0].svgData);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<MediaAnalysisResult | null>(null);
@@ -282,30 +260,6 @@ export const MediaPage: React.FC = () => {
       {/* ── TAB 1: IMAGE & MANGA OCR ── */}
       {activeTab === 'image' && (
         <div className="space-y-6">
-          {/* Preset Samples */}
-          <div className="space-y-2">
-            <div className="text-xs font-semibold text-stone-400 uppercase tracking-wider">
-              Ảnh mẫu thử nhanh:
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {SAMPLE_PRESETS.map((preset, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setSelectedImage(preset.svgData);
-                    setAnalysisResult(null);
-                  }}
-                  className="p-3 text-left rounded-xl bg-white border border-stone-200 hover:border-blue-400 hover:shadow-sm transition space-y-1"
-                >
-                  <div className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
-                    <span>{preset.title}</span>
-                  </div>
-                  <div className="text-[11px] text-stone-500 line-clamp-2">{preset.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Upload and Preview Canvas */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Left Preview / Upload Area */}
