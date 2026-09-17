@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { compression } from 'vite-plugin-compression2'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { compression } from 'vite-plugin-compression2';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -11,57 +11,37 @@ export default defineConfig({
   build: {
     target: 'es2020',
     minify: 'esbuild',
-    chunkSizeWarningLimit: 1500,
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // React core
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
             return 'react-vendor';
           }
-          // Firebase
-          if (id.includes('node_modules/firebase')) {
-            return 'firebase-vendor';
+          if (id.includes('node_modules/gsap') || id.includes('node_modules/three') || id.includes('node_modules/lottie-web') || id.includes('node_modules/lenis')) {
+            return 'motion-vendor';
           }
-          // Extra dictionary and Vi-Jp parts use dynamic import()
-          // Rollup handles their chunk splitting automatically — do NOT assign here
-          // JLPT vocab entries
-          if (id.includes('vocabEntriesN')) {
-            const match = id.match(/vocabEntriesN(\d)/);
-            if (match) return `vocab-n${match[1]}`;
+          if (id.includes('node_modules/lucide-react')) {
+            return 'icons-vendor';
           }
-          // Grammar data
-          if (id.includes('grammarCategories') || id.includes('grammarExpansion') || id.includes('grammarCrossRef') || id.includes('grammarDictRef')) {
-            return 'grammar-data';
-          }
-          // Vietnamese meanings
-          if (id.includes('vietnameseMeanings')) {
-            return 'vi-meanings';
-          }
-          // Kanji data
-          if (id.includes('kanjiJlpt') || id.includes('kanjiSpecial')) {
-            return 'kanji-data';
-          }
-          // Topic vocab + other data
-          if (id.includes('vocabEntriesTopics') || id.includes('compoundVocab') || id.includes('mockData')) {
-            return 'vocab-topics';
-          }
-          // Core utilities
-          if (id.includes('jlptWordLists') || id.includes('wordEnrichment')) {
-            return 'vocab-core';
+          if (id.includes('node_modules/idb-keyval')) {
+            return 'db-vendor';
           }
         },
       },
     },
   },
-  // Optimize dev server
   server: {
-    hmr: {
-      overlay: false,
+    port: 5173,
+    proxy: {
+      '/ollama': {
+        target: 'http://localhost:11434',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ollama/, ''),
+      },
     },
   },
-  // Optimize dependency pre-bundling
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: ['react', 'react-dom', 'react-router-dom', 'idb-keyval', 'lucide-react'],
   },
-})
+});

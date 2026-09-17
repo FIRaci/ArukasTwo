@@ -1,165 +1,286 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
-import { useAuth } from '../hooks/useAuth';
+import {
+  ThemeId,
+  ParticleType,
+  LanguageCode,
+  ThemeConfig,
+  OllamaModelInfo,
+} from '../types';
+import { checkOllamaConnection, fetchAvailableModels, DEFAULT_OLLAMA_ENDPOINT } from '../services/ollamaService';
 
-// ============================================================
-//  TYPES
-// ============================================================
-export type ThemeMode = 'sakura' | 'light' | 'dark';
-export type FontSizeLevel = 'sm' | 'md' | 'lg' | 'xl';
-
-export interface AppSettings {
-  theme: ThemeMode;
-  fontSize: FontSizeLevel;
-  fontVi: string;
-  fontJp: string;
-  petalsEnabled: boolean;
-  defaultShowVietnamese: boolean;
-  hideAnatomyTokens: boolean;
-}
-
-export const DEFAULT_SETTINGS: AppSettings = {
-  theme: 'sakura',
-  fontSize: 'md',
-  fontVi: 'Inter',
-  fontJp: 'Noto Serif JP',
-  petalsEnabled: true,
-  defaultShowVietnamese: true,
-  hideAnatomyTokens: false,
+export const THEME_CONFIGS: Record<ThemeId, ThemeConfig> = {
+  'minimal-white': {
+    id: 'minimal-white',
+    name: 'Trắng Tinh Khôi (Mặc định)',
+    country: 'Tối giản Hiện đại',
+    countryFlag: '⚪',
+    defaultParticle: 'none',
+    accentColor: '#3b82f6',
+    bgStyle: 'bg-stone-50/60 text-stone-800',
+    cardStyle: 'bg-white border-stone-200 shadow-sm',
+  },
+  'minimal-dark': {
+    id: 'minimal-dark',
+    name: 'Đêm Huyền Bí (Dark Mode)',
+    country: 'Hiện đại Tối',
+    countryFlag: '🌙',
+    defaultParticle: 'none',
+    accentColor: '#60a5fa',
+    bgStyle: 'bg-zinc-950 text-zinc-100',
+    cardStyle: 'bg-zinc-900 border-zinc-800 shadow-sm',
+  },
+  sakura: {
+    id: 'sakura',
+    name: 'Hoa Anh Đào (Sakura)',
+    country: 'Nhật Bản',
+    countryFlag: '🇯🇵',
+    defaultParticle: 'sakura',
+    accentColor: '#f43f5e',
+    bgStyle: 'bg-rose-50/50 text-stone-800',
+    cardStyle: 'bg-white/95 border-rose-100 shadow-sm',
+  },
+  bamboo: {
+    id: 'bamboo',
+    name: 'Trúc Xanh & Sen Việt',
+    country: 'Việt Nam',
+    countryFlag: '🇻🇳',
+    defaultParticle: 'bamboo',
+    accentColor: '#10b981',
+    bgStyle: 'bg-emerald-50/40 text-stone-800',
+    cardStyle: 'bg-white/95 border-emerald-100 shadow-sm',
+  },
+  ginkgo: {
+    id: 'ginkgo',
+    name: 'Ngân Hạnh & Phong Đỏ',
+    country: 'Hàn Quốc',
+    countryFlag: '🇰🇷',
+    defaultParticle: 'ginkgo',
+    accentColor: '#f59e0b',
+    bgStyle: 'bg-amber-50/40 text-stone-800',
+    cardStyle: 'bg-white/95 border-amber-100 shadow-sm',
+  },
+  ink: {
+    id: 'ink',
+    name: 'Thủy Mặc & Trà Hoa',
+    country: 'Trung Quốc',
+    countryFlag: '🇨🇳',
+    defaultParticle: 'ink',
+    accentColor: '#ef4444',
+    bgStyle: 'bg-[#faf6f0] text-stone-800',
+    cardStyle: 'bg-white/95 border-stone-200 shadow-sm',
+  },
+  frost: {
+    id: 'frost',
+    name: 'Băng Tuyết Mùa Đông',
+    country: 'Nga & Đức',
+    countryFlag: '❄️',
+    defaultParticle: 'snow',
+    accentColor: '#0ea5e9',
+    bgStyle: 'bg-sky-50/40 text-stone-800',
+    cardStyle: 'bg-white/95 border-sky-100 shadow-sm',
+  },
+  mediterranean: {
+    id: 'mediterranean',
+    name: 'Nắng Ấm Địa Trung Hải',
+    country: 'Tây Ban Nha & Ý',
+    countryFlag: '🌻',
+    defaultParticle: 'sunlight',
+    accentColor: '#f97316',
+    bgStyle: 'bg-orange-50/40 text-stone-800',
+    cardStyle: 'bg-white/95 border-orange-100 shadow-sm',
+  },
+  lavender: {
+    id: 'lavender',
+    name: 'Oải Hương Tinh Tế',
+    country: 'Pháp & Anh',
+    countryFlag: '🪻',
+    defaultParticle: 'lavender',
+    accentColor: '#8b5cf6',
+    bgStyle: 'bg-purple-50/40 text-stone-800',
+    cardStyle: 'bg-white/95 border-purple-100 shadow-sm',
+  },
 };
 
-export const FONT_VI_OPTIONS = [
-  { label: 'Inter', value: 'Inter' },
-  { label: 'Be Vietnam Pro', value: 'Be Vietnam Pro' },
-  { label: 'Roboto', value: 'Roboto' },
-  { label: 'Noto Sans', value: 'Noto Sans' },
-];
-
-export const FONT_JP_OPTIONS = [
-  { label: 'Noto Serif JP', value: 'Noto Serif JP' },
-  { label: 'Noto Sans JP', value: 'Noto Sans JP' },
-  { label: 'M PLUS Rounded 1c', value: 'M PLUS Rounded 1c' },
-  { label: 'Sawarabi Mincho', value: 'Sawarabi Mincho' },
-];
-
-export const FONT_SIZE_OPTIONS: { label: string; value: FontSizeLevel; px: string }[] = [
-  { label: 'Nhỏ', value: 'sm', px: '14px' },
-  { label: 'Vừa', value: 'md', px: '16px' },
-  { label: 'Lớn', value: 'lg', px: '18px' },
-  { label: 'Rất lớn', value: 'xl', px: '20px' },
-];
-
-const STORAGE_KEY = 'arukas-settings';
-
-// ============================================================
-//  CONTEXT
-// ============================================================
 interface SettingsContextValue {
-  settings: AppSettings;
-  updateSettings: (partial: Partial<AppSettings>) => void;
+  theme: ThemeId;
+  setTheme: (t: ThemeId) => void;
+  particle: ParticleType;
+  setParticle: (p: ParticleType) => void;
+  sourceLang: LanguageCode | 'auto';
+  setSourceLang: (l: LanguageCode | 'auto') => void;
+  targetLang: LanguageCode;
+  setTargetLang: (l: LanguageCode) => void;
+  swapLanguages: () => void;
+  ollamaEndpoint: string;
+  setOllamaEndpoint: (url: string) => void;
+  textModel: string;
+  setTextModel: (m: string) => void;
+  visionModel: string;
+  setVisionModel: (m: string) => void;
+  isOllamaConnected: boolean;
+  ollamaLatency: number;
+  availableModels: OllamaModelInfo[];
+  refreshOllama: () => Promise<void>;
   isSettingsOpen: boolean;
   openSettings: () => void;
   closeSettings: () => void;
+  currentThemeConfig: ThemeConfig;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
-export function useSettings() {
-  const ctx = useContext(SettingsContext);
-  if (!ctx) throw new Error('useSettings must be used inside SettingsProvider');
-  return ctx;
-}
+const STORAGE_KEYS = {
+  THEME: 'arukas2_theme',
+  PARTICLE: 'arukas2_particle',
+  SRC_LANG: 'arukas2_source_lang',
+  TGT_LANG: 'arukas2_target_lang',
+  ENDPOINT: 'arukas2_ollama_endpoint',
+  TEXT_MODEL: 'arukas2_text_model',
+  VISION_MODEL: 'arukas2_vision_model',
+};
 
-// ============================================================
-//  PROVIDER
-// ============================================================
-export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [firestoreLoaded, setFirestoreLoaded] = useState(false);
-
-  // Load from localStorage initially
-  const [settings, setSettings] = useState<AppSettings>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return { ...DEFAULT_SETTINGS, ...parsed };
-      }
-    } catch { /* ignore */ }
-    // Migrate old petals key
-    const oldPetals = localStorage.getItem('arukas-petals');
-    if (oldPetals !== null) {
-      return { ...DEFAULT_SETTINGS, petalsEnabled: oldPetals === 'true' };
-    }
-    return DEFAULT_SETTINGS;
+export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [theme, setThemeState] = useState<ThemeId>(() => {
+    return (localStorage.getItem(STORAGE_KEYS.THEME) as ThemeId) || 'minimal-white';
   });
 
-  // Load from Firestore when user logs in
-  useEffect(() => {
-    if (!user) {
-      setFirestoreLoaded(false);
-      return;
+  const [particle, setParticleState] = useState<ParticleType>(() => {
+    return (localStorage.getItem(STORAGE_KEYS.PARTICLE) as ParticleType) || 'none';
+  });
+
+  const [sourceLang, setSourceLangState] = useState<LanguageCode | 'auto'>('auto');
+  const [targetLang, setTargetLangState] = useState<LanguageCode>('vi');
+
+  const [ollamaEndpoint, setOllamaEndpointState] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEYS.ENDPOINT) || DEFAULT_OLLAMA_ENDPOINT;
+  });
+
+  const [textModel, setTextModelState] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEYS.TEXT_MODEL) || 'llama3.1:latest';
+  });
+
+  const [visionModel, setVisionModelState] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEYS.VISION_MODEL) || 'qwen2.5vl:7b';
+  });
+
+  const [isOllamaConnected, setIsOllamaConnected] = useState(false);
+  const [ollamaLatency, setOllamaLatency] = useState(0);
+  const [availableModels, setAvailableModels] = useState<OllamaModelInfo[]>([]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  const setTheme = (t: ThemeId) => {
+    setThemeState(t);
+    localStorage.setItem(STORAGE_KEYS.THEME, t);
+  };
+
+  const setParticle = (p: ParticleType) => {
+    setParticleState(p);
+    localStorage.setItem(STORAGE_KEYS.PARTICLE, p);
+  };
+
+  const setSourceLang = (l: LanguageCode | 'auto') => {
+    setSourceLangState(l);
+    localStorage.setItem(STORAGE_KEYS.SRC_LANG, l);
+  };
+
+  const setTargetLang = (l: LanguageCode) => {
+    setTargetLangState(l);
+    localStorage.setItem(STORAGE_KEYS.TGT_LANG, l);
+  };
+
+  const swapLanguages = () => {
+    if (sourceLang === 'auto') {
+      setSourceLang(targetLang);
+      setTargetLang('en');
+    } else {
+      const prevSource = sourceLang;
+      setSourceLang(targetLang);
+      setTargetLang(prevSource);
     }
-    const ref = doc(db, 'users', user.uid, 'meta', 'settings');
-    getDoc(ref).then(snap => {
-      if (snap.exists()) {
-        const data = snap.data() as Partial<AppSettings>;
-        setSettings(prev => ({ ...prev, ...data }));
+  };
+
+  const setOllamaEndpoint = (url: string) => {
+    setOllamaEndpointState(url);
+    localStorage.setItem(STORAGE_KEYS.ENDPOINT, url);
+  };
+
+  const setTextModel = (m: string) => {
+    setTextModelState(m);
+    localStorage.setItem(STORAGE_KEYS.TEXT_MODEL, m);
+  };
+
+  const setVisionModel = (m: string) => {
+    setVisionModelState(m);
+    localStorage.setItem(STORAGE_KEYS.VISION_MODEL, m);
+  };
+
+  const refreshOllama = useCallback(async () => {
+    const { isConnected, latencyMs } = await checkOllamaConnection(ollamaEndpoint);
+    setIsOllamaConnected(isConnected);
+    setOllamaLatency(latencyMs);
+
+    if (isConnected) {
+      const models = await fetchAvailableModels(ollamaEndpoint);
+      setAvailableModels(models);
+
+      // Auto pick model if current not set or default
+      if (models.length > 0) {
+        const textNames = models.filter((m) => !m.isVision).map((m) => m.name);
+        const visionNames = models.filter((m) => m.isVision).map((m) => m.name);
+
+        if (!textNames.includes(textModel)) {
+          const preferred = textNames.find((n) => n.includes('qwen') || n.includes('llama')) || models[0].name;
+          setTextModel(preferred);
+        }
+        if (!visionNames.includes(visionModel)) {
+          const preferredVision = visionNames[0] || models[0].name;
+          setVisionModel(preferredVision);
+        }
       }
-      setFirestoreLoaded(true);
-    }).catch((err) => {
-      console.error('Failed to load settings from Firestore:', err);
-      setFirestoreLoaded(true);
-    });
-  }, [user]);
+    }
+  }, [ollamaEndpoint, textModel, visionModel]);
 
-  // Apply settings to DOM
   useEffect(() => {
-    const root = document.documentElement;
-    root.setAttribute('data-theme', settings.theme);
+    refreshOllama();
+  }, [refreshOllama]);
 
-    // Font size
-    const sizeMap: Record<FontSizeLevel, string> = { sm: '14px', md: '16px', lg: '18px', xl: '20px' };
-    root.style.fontSize = sizeMap[settings.fontSize];
-
-    // Font families
-    root.style.setProperty('--font-vi', `'${settings.fontVi}', sans-serif`);
-    root.style.setProperty('--font-jp', `'${settings.fontJp}', serif`);
-
-    // Apply to body
-    document.body.style.fontFamily = `'${settings.fontVi}', sans-serif`;
-
-    // Save to localStorage
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    // Remove legacy key
-    localStorage.removeItem('arukas-petals');
-  }, [settings]);
-
-  // Save to Firestore when settings change (debounced via user check)
-  useEffect(() => {
-    if (!user || !firestoreLoaded) return;
-    const ref = doc(db, 'users', user.uid, 'meta', 'settings');
-    const timeout = setTimeout(() => {
-      setDoc(ref, settings, { merge: true }).catch(console.error);
-    }, 500); // debounce 500ms
-    return () => clearTimeout(timeout);
-  }, [settings, user, firestoreLoaded]);
-
-  const updateSettings = useCallback((partial: Partial<AppSettings>) => {
-    setSettings(prev => ({ ...prev, ...partial }));
-  }, []);
+  const currentThemeConfig = THEME_CONFIGS[theme] || THEME_CONFIGS['minimal-white'];
 
   return (
-    <SettingsContext.Provider value={{
-      settings,
-      updateSettings,
-      isSettingsOpen,
-      openSettings: () => setIsSettingsOpen(true),
-      closeSettings: () => setIsSettingsOpen(false),
-    }}>
+    <SettingsContext.Provider
+      value={{
+        theme,
+        setTheme,
+        particle,
+        setParticle,
+        sourceLang,
+        setSourceLang,
+        targetLang,
+        setTargetLang,
+        swapLanguages,
+        ollamaEndpoint,
+        setOllamaEndpoint,
+        textModel,
+        setTextModel,
+        visionModel,
+        setVisionModel,
+        isOllamaConnected,
+        ollamaLatency,
+        availableModels,
+        refreshOllama,
+        isSettingsOpen,
+        openSettings: () => setIsSettingsOpen(true),
+        closeSettings: () => setIsSettingsOpen(false),
+        currentThemeConfig,
+      }}
+    >
       {children}
     </SettingsContext.Provider>
   );
+};
+
+export function useSettings() {
+  const context = useContext(SettingsContext);
+  if (!context) throw new Error('useSettings must be used within SettingsProvider');
+  return context;
 }
