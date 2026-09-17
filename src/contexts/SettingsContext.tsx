@@ -101,11 +101,16 @@ export const THEME_CONFIGS: Record<ThemeId, ThemeConfig> = {
   },
 };
 
+import { UILanguage, getUITranslation } from '../services/i18n';
+
 interface SettingsContextValue {
   theme: ThemeId;
   setTheme: (t: ThemeId) => void;
   particle: ParticleType;
   setParticle: (p: ParticleType) => void;
+  uiLang: UILanguage;
+  setUILang: (l: UILanguage) => void;
+  t: (key: string) => string;
   sourceLang: LanguageCode | 'auto';
   setSourceLang: (l: LanguageCode | 'auto') => void;
   targetLang: LanguageCode;
@@ -132,6 +137,7 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 const STORAGE_KEYS = {
   THEME: 'arukas2_theme',
   PARTICLE: 'arukas2_particle',
+  UI_LANG: 'arukas2_ui_lang',
   SRC_LANG: 'arukas2_source_lang',
   TGT_LANG: 'arukas2_target_lang',
   ENDPOINT: 'arukas2_ollama_endpoint',
@@ -148,8 +154,19 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return (localStorage.getItem(STORAGE_KEYS.PARTICLE) as ParticleType) || 'none';
   });
 
+  const [uiLang, setUILangState] = useState<UILanguage>(() => {
+    return (localStorage.getItem(STORAGE_KEYS.UI_LANG) as UILanguage) || 'vi';
+  });
+
   const [sourceLang, setSourceLangState] = useState<LanguageCode | 'auto'>('auto');
   const [targetLang, setTargetLangState] = useState<LanguageCode>('vi');
+
+  const setUILang = (l: UILanguage) => {
+    setUILangState(l);
+    localStorage.setItem(STORAGE_KEYS.UI_LANG, l);
+  };
+
+  const t = (key: string) => getUITranslation(uiLang, key);
 
   const [ollamaEndpoint, setOllamaEndpointState] = useState<string>(() => {
     return localStorage.getItem(STORAGE_KEYS.ENDPOINT) || DEFAULT_OLLAMA_ENDPOINT;
@@ -253,6 +270,9 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setTheme,
         particle,
         setParticle,
+        uiLang,
+        setUILang,
+        t,
         sourceLang,
         setSourceLang,
         targetLang,
