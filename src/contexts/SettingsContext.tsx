@@ -156,7 +156,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const [textModel, setTextModelState] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEYS.TEXT_MODEL) || 'llama3.1:latest';
+    return localStorage.getItem(STORAGE_KEYS.TEXT_MODEL) || 'qwen2.5:7b';
   });
 
   const [visionModel, setVisionModelState] = useState<string>(() => {
@@ -228,8 +228,8 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const textNames = models.filter((m) => !m.isVision).map((m) => m.name);
         const visionNames = models.filter((m) => m.isVision).map((m) => m.name);
 
-        if (!textNames.includes(textModel)) {
-          const preferred = textNames.find((n) => n.includes('qwen') || n.includes('llama')) || models[0].name;
+        if (!textNames.includes(textModel) || textModel === 'llama3.1:latest') {
+          const preferred = textNames.find((n) => n === 'qwen2.5:7b' || n.startsWith('qwen2.5:')) || textNames[0] || models[0].name;
           setTextModel(preferred);
         }
         if (!visionNames.includes(visionModel)) {
