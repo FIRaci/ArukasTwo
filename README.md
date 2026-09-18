@@ -89,18 +89,24 @@ ollama run minicpm-v
 
 ## 🚀 Khởi Chạy Ứng Dụng
 
-### 1. Cài đặt các gói phụ thuộc:
-```bash
-npm install
-```
+### ⚡ Cách 1: Khởi chạy siêu tốc 1-Click với `run.bat` (Khuyên dùng trên Windows)
+Chỉ cần **click đúp vào tệp `run.bat`** ở thư mục gốc của dự án!
+Script sẽ tự động:
+- Kiểm tra môi trường Node.js và tự động chạy `npm install` nếu thiếu thư viện.
+- Kiểm tra máy chủ AI cục bộ **Ollama** và phát hiện mô hình đề xuất **`qwen2.5:7b`**.
+- Khởi động máy chủ phát triển Vite và **tự động mở trình duyệt web** tại `http://localhost:5173/`.
 
-### 2. Chạy server phát triển cục bộ:
+### 💻 Cách 2: Khởi chạy thủ công qua Terminal / Command Prompt:
 ```bash
+# 1. Cài đặt các gói phụ thuộc (lần đầu):
+npm install
+
+# 2. Chạy server phát triển cục bộ:
 npm run dev
 ```
-Truy cập: `http://localhost:5173`
+Truy cập: `http://localhost:5173/`
 
-### 3. Đóng gói bản Production:
+### 📦 Đóng gói bản Production:
 ```bash
 npm run build
 ```
