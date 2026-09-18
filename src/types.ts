@@ -72,6 +72,7 @@ export interface AnalysisToken {
   lemma?: string; // Base / dictionary form
   role?: string; // Subject, Object, Predicate, Modifier
   hanViet?: string; // For CJKV (Viet, Japanese, Chinese, Sino-Korean)
+  inflection?: string; // E.g. Thể Te, Thể quá khứ, Bị động, Sai khiến, Thể từ điển
   nuanceNote?: string;
 }
 
@@ -82,11 +83,46 @@ export interface AnalysisGrammarPoint {
   meaning: string;
   formula?: string;
   explanation: string;
+  level?: string; // JLPT N1-N5, HSK 1-6, CEFR A1-C2
   examples?: { original: string; translation: string }[];
+}
+
+export interface MacroSyntaxClause {
+  clauseId: string;
+  clauseText: string;
+  subject?: string;
+  predicate: string;
+  object?: string;
+  modifier?: string;
+  connector?: string;
+  explanation?: string;
+}
+
+export interface KeyVocabularyTerm {
+  id: string;
+  text: string;
+  reading?: string;
+  hanViet?: string;
+  pos: string;
+  meaning: string;
+  level?: string; // Core, Advanced, Specialized
+}
+
+export interface SentenceAnalysisChunk {
+  sentenceIndex: number;
+  originalText: string;
+  translation: string;
+  literalTranslation?: string;
+  macroSyntax?: MacroSyntaxClause[];
+  tokens: AnalysisToken[];
+  grammarPoints: AnalysisGrammarPoint[];
+  isAnalyzed: boolean;
+  isAnalyzing?: boolean;
 }
 
 export interface AnalysisSummary {
   translation: string;
+  literalTranslation?: string; // Dịch sát nghĩa từng từ
   overview: string;
   tone: string; // Trang trọng (Formal), Thân mật (Casual), Văn học (Literary), Khẩu ngữ (Colloquial)
   culturalContext?: string;
@@ -101,6 +137,10 @@ export interface TextAnalysisResult {
   summary: AnalysisSummary;
   tokens: AnalysisToken[];
   grammarPoints: AnalysisGrammarPoint[];
+  macroSyntax?: MacroSyntaxClause[];
+  keyTerms?: KeyVocabularyTerm[];
+  sentences?: SentenceAnalysisChunk[];
+  activeSentenceIndex?: number;
   analyzedAt: number;
 }
 

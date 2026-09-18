@@ -14,6 +14,7 @@ import {
   ChevronUp,
   Split,
   BookOpen,
+  Share2,
 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 import {
@@ -23,8 +24,9 @@ import {
   TextAnalysisResult,
   AnalysisToken,
   AnalysisGrammarPoint,
+  KeyVocabularyTerm,
 } from '../types';
-import { analyzeTextBiDirectional } from '../services/ollamaService';
+import { analyzeTextBiDirectional, analyzeSpecificSentence } from '../services/ollamaService';
 import {
   saveWordItem,
   saveGrammarItem,
@@ -32,6 +34,10 @@ import {
   getAnalysisHistory,
 } from '../services/localDbService';
 import { useNavigate } from 'react-router-dom';
+import { SentenceNavigator } from '../components/analysis/SentenceNavigator';
+import { MacroSyntaxCard } from '../components/analysis/MacroSyntaxCard';
+import { KeyVocabularyCard } from '../components/analysis/KeyVocabularyCard';
+import { ExportReportModal } from '../components/analysis/ExportReportModal';
 
 const POS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   NOUN: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -64,6 +70,7 @@ export const AnalyzePage: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<TextAnalysisResult | null>(null);
+  const [activeSentenceIdx, setActiveSentenceIdx] = useState<number>(-1);
   const [selectedToken, setSelectedToken] = useState<AnalysisToken | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedTokens, setSavedTokens] = useState<Set<string>>(new Set());
@@ -71,19 +78,45 @@ export const AnalyzePage: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<TextAnalysisResult[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     getAnalysisHistory().then(setHistory);
   }, []);
 
-  // When result updates, auto select first token
+  // Set default active sentence when result arrives
   useEffect(() => {
-    if (result && result.tokens.length > 0) {
-      setSelectedToken(result.tokens[0]);
+    if (result) {
+      if (result.sentences && result.sentences.length > 1) {
+        setActiveSentenceIdx(0);
+      } else {
+        setActiveSentenceIdx(-1);
+      }
+    }
+  }, [result?.id]);
+
+  // Determine which tokens, macroSyntax, and grammar points to display based on activeSentenceIdx
+  const activeChunk =
+    result?.sentences && activeSentenceIdx >= 0
+      ? result.sentences[activeSentenceIdx]
+      : null;
+
+  const displayTokens = activeChunk?.tokens?.length ? activeChunk.tokens : result?.tokens || [];
+  const displayMacroSyntax = activeChunk?.macroSyntax?.length
+    ? activeChunk.macroSyntax
+    : result?.macroSyntax || [];
+  const displayGrammarPoints = activeChunk?.grammarPoints?.length
+    ? activeChunk.grammarPoints
+    : result?.grammarPoints || [];
+
+  // When active tokens change, auto select first token
+  useEffect(() => {
+    if (displayTokens.length > 0) {
+      setSelectedToken(displayTokens[0]);
     } else {
       setSelectedToken(null);
     }
-  }, [result]);
+  }, [activeSentenceIdx, result]);
 
   const handleSpeak = (text: string, langCode: LanguageCode) => {
     if (!window.speechSynthesis) return;
@@ -133,6 +166,53 @@ export const AnalyzePage: React.FC = () => {
     }
   };
 
+  // Analyze specific sentence on demand when user clicks unanalyzed sentence
+  const handleAnalyzeSpecificSentence = async (index: number) => {
+    if (!result || !result.sentences || !result.sentences[index]) return;
+    const targetSentence = result.sentences[index];
+    if (targetSentence.isAnalyzed || targetSentence.isAnalyzing) return;
+
+    // Mark as analyzing in state
+    setResult((prev) => {
+      if (!prev || !prev.sentences) return prev;
+      const updated = [...prev.sentences];
+      updated[index] = { ...updated[index], isAnalyzing: true };
+      return { ...prev, sentences: updated };
+    });
+
+    try {
+      const res = await analyzeSpecificSentence({
+        sentenceText: targetSentence.originalText,
+        sourceLang: result.resolvedSourceLang,
+        targetLang: result.targetLang,
+        model: textModel,
+        endpoint: ollamaEndpoint,
+      });
+
+      setResult((prev) => {
+        if (!prev || !prev.sentences) return prev;
+        const updated = [...prev.sentences];
+        updated[index] = {
+          ...updated[index],
+          macroSyntax: res.macroSyntax,
+          tokens: res.tokens,
+          grammarPoints: res.grammarPoints,
+          isAnalyzed: true,
+          isAnalyzing: false,
+        };
+        return { ...prev, sentences: updated };
+      });
+    } catch (err) {
+      console.error('Failed to analyze sentence:', err);
+      setResult((prev) => {
+        if (!prev || !prev.sentences) return prev;
+        const updated = [...prev.sentences];
+        updated[index] = { ...updated[index], isAnalyzing: false };
+        return { ...prev, sentences: updated };
+      });
+    }
+  };
+
   const handleSaveWord = async (token: AnalysisToken) => {
     if (!result) return;
     try {
@@ -144,14 +224,42 @@ export const AnalyzePage: React.FC = () => {
         pos: token.posLabel || token.pos,
         lang: result.resolvedSourceLang,
         targetLang: result.targetLang,
-        contextSentence: result.sourceText,
+        contextSentence: activeChunk?.originalText || result.sourceText,
         tags: [token.posLabel || token.pos],
         savedAt: Date.now(),
-        notes: token.nuanceNote,
+        notes: token.nuanceNote || token.inflection,
       });
       setSavedTokens((prev) => new Set(prev).add(token.id));
     } catch (e) {
       console.error('Save word error:', e);
+    }
+  };
+
+  const handleSaveKeyTerm = async (term: KeyVocabularyTerm) => {
+    if (!result) return;
+    try {
+      await saveWordItem({
+        id: `term_${Date.now()}_${term.id}`,
+        text: term.text,
+        reading: term.reading || '',
+        meaning: term.meaning,
+        pos: term.pos,
+        lang: result.resolvedSourceLang,
+        targetLang: result.targetLang,
+        contextSentence: result.sourceText,
+        tags: [term.level || 'KeyTerm'],
+        savedAt: Date.now(),
+        notes: term.hanViet ? `Hán-Việt: ${term.hanViet}` : undefined,
+      });
+    } catch (e) {
+      console.error('Save key term error:', e);
+    }
+  };
+
+  const handleBulkSaveKeyTerms = async (terms: KeyVocabularyTerm[]) => {
+    if (!result) return;
+    for (const term of terms) {
+      await handleSaveKeyTerm(term);
     }
   };
 
@@ -167,7 +275,7 @@ export const AnalyzePage: React.FC = () => {
         explanation: gp.explanation,
         lang: result.resolvedSourceLang,
         targetLang: result.targetLang,
-        tags: [gp.structure],
+        tags: [gp.structure, gp.level || 'Grammar'],
         savedAt: Date.now(),
       });
       setSavedGrammars((prev) => new Set(prev).add(gp.id));
@@ -189,7 +297,7 @@ export const AnalyzePage: React.FC = () => {
             Phân Tích Cấu Trúc Ngôn Ngữ 2 Chiều
           </h1>
           <p className="text-xs sm:text-sm text-stone-500">
-            Được vận hành bởi mô hình <strong className="text-stone-800 font-mono">{textModel}</strong> trên Ollama cục bộ.
+            Bóc tách tiến trình siêu tốc với mô hình <strong className="text-stone-800 font-mono">{textModel}</strong> trên Ollama cục bộ.
           </p>
         </div>
 
@@ -252,8 +360,8 @@ export const AnalyzePage: React.FC = () => {
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Nhập bất kỳ câu hoặc đoạn văn bằng tiếng Việt, Nhật, Hàn, Trung, Nga, Anh, Pháp, Tây Ban Nha..."
-                rows={5}
+                placeholder="Nhập bất kỳ câu hoặc đoạn văn dài (tin tức báo chí, đoạn văn nhiều câu, tài liệu)..."
+                rows={6}
                 className="w-full p-4 rounded-2xl bg-stone-50/70 border border-stone-200 text-stone-900 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-y font-medium"
               />
 
@@ -269,7 +377,6 @@ export const AnalyzePage: React.FC = () => {
               </div>
             </div>
 
-
             {/* Primary Action Button */}
             <button
               type="button"
@@ -280,12 +387,12 @@ export const AnalyzePage: React.FC = () => {
               {isAnalyzing ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Đang bóc tách đa chiều ({textModel})...</span>
+                  <span>Đang bóc tách đa tầng ({textModel})...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Bóc Tách & Phân Tích Câu</span>
+                  <span>Bóc Tách & Phân Tích Đa Tầng</span>
                 </>
               )}
             </button>
@@ -347,12 +454,22 @@ export const AnalyzePage: React.FC = () => {
         <div className="lg:col-span-7 space-y-6">
           {result ? (
             <div className="space-y-6 animate-fadeIn">
-              {/* 1. Natural Translation Card */}
+              {/* Sentence Navigator if multiple sentences */}
+              {result.sentences && result.sentences.length > 1 && (
+                <SentenceNavigator
+                  sentences={result.sentences}
+                  activeIndex={activeSentenceIdx}
+                  onSelectIndex={(idx) => setActiveSentenceIdx(idx)}
+                  onAnalyzeSentence={handleAnalyzeSpecificSentence}
+                />
+              )}
+
+              {/* 1. Multi-Layer Translation Card */}
               <div className="p-6 rounded-3xl bg-white border border-stone-200/90 shadow-sm space-y-4">
                 <div className="flex items-center justify-between border-b border-stone-100 pb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                      Bản Dịch Tự Nhiên
+                      {activeChunk ? `Bản Dịch Câu ${activeSentenceIdx + 1}` : 'Bản Dịch Toàn Đoạn'}
                     </span>
                     <span className="text-xs text-stone-400">
                       {getLanguageInfo(result.resolvedSourceLang).flag} → {getLanguageInfo(result.targetLang).flag}
@@ -362,7 +479,21 @@ export const AnalyzePage: React.FC = () => {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => handleSpeak(result.summary.translation, result.targetLang)}
+                      onClick={() => setShowExportModal(true)}
+                      title="Xuất báo cáo phân tích"
+                      className="p-2 rounded-xl text-stone-500 hover:text-blue-600 hover:bg-blue-50 transition"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleSpeak(
+                          activeChunk?.translation || result.summary.translation,
+                          result.targetLang
+                        )
+                      }
                       title="Nghe phát âm bản dịch"
                       className="p-2 rounded-xl text-stone-500 hover:text-blue-600 hover:bg-blue-50 transition"
                     >
@@ -371,7 +502,9 @@ export const AnalyzePage: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={() => handleCopy(result.summary.translation)}
+                      onClick={() =>
+                        handleCopy(activeChunk?.translation || result.summary.translation)
+                      }
                       title="Sao chép bản dịch"
                       className="p-2 rounded-xl text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition"
                     >
@@ -380,10 +513,24 @@ export const AnalyzePage: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Natural Translation */}
                 <div className="text-lg sm:text-xl font-medium text-stone-900 leading-relaxed">
-                  {result.summary.translation}
+                  {activeChunk?.translation || result.summary.translation}
                 </div>
 
+                {/* Literal Gloss Translation if available */}
+                {result.summary.literalTranslation && (
+                  <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200/80 text-xs text-stone-600 space-y-1">
+                    <span className="font-bold text-stone-700 uppercase text-[10px] tracking-wider block">
+                      Đối chiếu dịch sát nghĩa (Literal Gloss):
+                    </span>
+                    <p className="italic text-stone-800 leading-relaxed">
+                      "{result.summary.literalTranslation}"
+                    </p>
+                  </div>
+                )}
+
+                {/* Tone & Overview */}
                 <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
                   <span className="px-2.5 py-1 rounded-lg bg-stone-100 font-bold text-stone-700">
                     Sắc thái: <span className="text-blue-600">{result.summary.tone}</span>
@@ -393,6 +540,7 @@ export const AnalyzePage: React.FC = () => {
                   )}
                 </div>
 
+                {/* Cultural Context */}
                 {result.summary.culturalContext && (
                   <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-amber-950 text-xs flex items-start gap-2.5">
                     <HelpCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
@@ -404,156 +552,181 @@ export const AnalyzePage: React.FC = () => {
                 )}
               </div>
 
-              {/* 2. Interactive Token Anatomy Matrix */}
-              <div className="p-6 rounded-3xl bg-white border border-stone-200/90 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-blue-600" />
-                    <h3 className="text-sm font-black text-stone-900">
-                      Bóc Tách Thành Phần Câu ({result.tokens.length} từ)
-                    </h3>
+              {/* 2. Key Vocabulary & Specialized Terms Table */}
+              {result.keyTerms && result.keyTerms.length > 0 && (
+                <KeyVocabularyCard
+                  terms={result.keyTerms}
+                  sourceLang={result.resolvedSourceLang}
+                  onSaveTerm={handleSaveKeyTerm}
+                  onBulkSaveTerms={handleBulkSaveKeyTerms}
+                />
+              )}
+
+              {/* 3. Macro-Syntax SVO Card */}
+              {displayMacroSyntax.length > 0 && (
+                <MacroSyntaxCard
+                  clauses={displayMacroSyntax}
+                  sentenceText={activeChunk?.originalText}
+                />
+              )}
+
+              {/* 4. Interactive Token Anatomy Matrix */}
+              {displayTokens.length > 0 && (
+                <div className="p-6 rounded-3xl bg-white border border-stone-200/90 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-blue-600" />
+                      <h3 className="text-sm font-black text-stone-900">
+                        Bóc Tách Thành Phần Câu ({displayTokens.length} từ)
+                      </h3>
+                    </div>
+                    <span className="text-[11px] text-stone-400">Click vào từ để soi chi tiết</span>
                   </div>
-                  <span className="text-[11px] text-stone-400">Click vào từ để soi chi tiết</span>
-                </div>
 
-                {/* Interactive Token Ribbon */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {result.tokens.map((tok) => {
-                    const isSelected = selectedToken?.id === tok.id;
-                    const posCfg = POS_COLORS[tok.pos] || POS_COLORS.DEFAULT;
+                  {/* Interactive Token Ribbon */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {displayTokens.map((tok) => {
+                      const isSelected = selectedToken?.id === tok.id;
+                      const posCfg = POS_COLORS[tok.pos] || POS_COLORS.DEFAULT;
 
-                    return (
-                      <button
-                        key={tok.id}
-                        type="button"
-                        onClick={() => setSelectedToken(tok)}
-                        className={`group px-3 py-2 rounded-xl text-left border transition-all ${
-                          isSelected
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-105'
-                            : `bg-white ${posCfg.border} hover:border-blue-400 hover:shadow-xs`
-                        }`}
-                      >
-                        <div className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-stone-900'}`}>
-                          {tok.text}
+                      return (
+                        <button
+                          key={tok.id}
+                          type="button"
+                          onClick={() => setSelectedToken(tok)}
+                          className={`group px-3 py-2 rounded-xl text-left border transition-all ${
+                            isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-sm scale-105'
+                              : `bg-white ${posCfg.border} hover:border-blue-400 hover:shadow-xs`
+                          }`}
+                        >
+                          <div className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-stone-900'}`}>
+                            {tok.text}
+                          </div>
+                          {tok.reading && (
+                            <div className={`text-[10px] font-mono ${isSelected ? 'text-blue-100' : 'text-blue-600'}`}>
+                              {tok.reading}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Selected Token Inspector Card */}
+                  {selectedToken && (
+                    <div className="p-4 rounded-2xl bg-stone-50/80 border border-stone-200 space-y-3 mt-3 animate-fadeIn">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="text-lg font-black text-stone-900 flex items-center gap-2">
+                            <span>{selectedToken.text}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleSpeak(selectedToken.text, result.resolvedSourceLang)}
+                              title="Nghe phát âm"
+                              className="text-stone-400 hover:text-blue-600 transition"
+                            >
+                              <Volume2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          {selectedToken.reading && (
+                            <div className="text-xs font-mono font-bold text-blue-600">{selectedToken.reading}</div>
+                          )}
+                          {selectedToken.hanViet && (
+                            <div className="text-xs text-stone-500 mt-0.5">Hán-Việt: {selectedToken.hanViet}</div>
+                          )}
                         </div>
-                        {tok.reading && (
-                          <div className={`text-[10px] font-mono ${isSelected ? 'text-blue-100' : 'text-blue-600'}`}>
-                            {tok.reading}
+
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wider ${
+                            (POS_COLORS[selectedToken.pos] || POS_COLORS.DEFAULT).bg
+                          } ${(POS_COLORS[selectedToken.pos] || POS_COLORS.DEFAULT).text} ${
+                            (POS_COLORS[selectedToken.pos] || POS_COLORS.DEFAULT).border
+                          }`}
+                        >
+                          {selectedToken.posLabel || selectedToken.pos}
+                        </span>
+                      </div>
+
+                      <div className="text-sm font-semibold text-stone-800">
+                        Nghĩa trong câu: <span className="font-normal text-stone-700">{selectedToken.meaning}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-stone-600 pt-1">
+                        {selectedToken.role && (
+                          <div className="p-2 rounded-xl bg-white border border-stone-100">
+                            Vai trò: <strong className="text-stone-800">{selectedToken.role}</strong>
                           </div>
                         )}
-                      </button>
-                    );
-                  })}
+                        {selectedToken.lemma && (
+                          <div className="p-2 rounded-xl bg-white border border-stone-100">
+                            Gốc từ: <code className="text-blue-600 font-mono">{selectedToken.lemma}</code>
+                          </div>
+                        )}
+                        {selectedToken.inflection && (
+                          <div className="p-2 rounded-xl bg-white border border-stone-100">
+                            Thể: <strong className="text-emerald-700">{selectedToken.inflection}</strong>
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedToken.nuanceNote && (
+                        <div className="p-2.5 rounded-xl bg-white border border-stone-100 text-xs text-stone-600 italic">
+                          {selectedToken.nuanceNote}
+                        </div>
+                      )}
+
+                      {/* Action Bar */}
+                      <div className="pt-2 border-t border-stone-200/60 flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() => navigate('/hub')}
+                          className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 font-semibold"
+                        >
+                          <Split className="w-3.5 h-3.5" />
+                          <span>Mở trong Đấu Trường So Sánh</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSaveWord(selectedToken)}
+                          disabled={savedTokens.has(selectedToken.id)}
+                          className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-bold transition ${
+                            savedTokens.has(selectedToken.id)
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-blue-600 text-white hover:bg-blue-700 shadow-2xs'
+                          }`}
+                        >
+                          {savedTokens.has(selectedToken.id) ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Đã lưu vào kho</span>
+                            </>
+                          ) : (
+                            <>
+                              <BookmarkPlus className="w-3.5 h-3.5" />
+                              <span>Lưu từ này</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
+              )}
 
-                {/* Selected Token Inspector Card */}
-                {selectedToken && (
-                  <div className="p-4 rounded-2xl bg-stone-50/80 border border-stone-200 space-y-3 mt-3 animate-fadeIn">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="text-lg font-black text-stone-900 flex items-center gap-2">
-                          <span>{selectedToken.text}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleSpeak(selectedToken.text, result.resolvedSourceLang)}
-                            title="Nghe phát âm"
-                            className="text-stone-400 hover:text-blue-600 transition"
-                          >
-                            <Volume2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                        {selectedToken.reading && (
-                          <div className="text-xs font-mono font-bold text-blue-600">{selectedToken.reading}</div>
-                        )}
-                        {selectedToken.hanViet && (
-                          <div className="text-xs text-stone-500 mt-0.5">Hán-Việt: {selectedToken.hanViet}</div>
-                        )}
-                      </div>
-
-                      <span
-                        className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wider ${
-                          (POS_COLORS[selectedToken.pos] || POS_COLORS.DEFAULT).bg
-                        } ${(POS_COLORS[selectedToken.pos] || POS_COLORS.DEFAULT).text} ${
-                          (POS_COLORS[selectedToken.pos] || POS_COLORS.DEFAULT).border
-                        }`}
-                      >
-                        {selectedToken.posLabel || selectedToken.pos}
-                      </span>
-                    </div>
-
-                    <div className="text-sm font-semibold text-stone-800">
-                      Nghĩa trong câu: <span className="font-normal text-stone-700">{selectedToken.meaning}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs text-stone-600 pt-1">
-                      {selectedToken.role && (
-                        <div className="p-2 rounded-xl bg-white border border-stone-100">
-                          Vai trò: <strong className="text-stone-800">{selectedToken.role}</strong>
-                        </div>
-                      )}
-                      {selectedToken.lemma && (
-                        <div className="p-2 rounded-xl bg-white border border-stone-100">
-                          Nguyên thể (lemma): <code className="text-blue-600 font-mono">{selectedToken.lemma}</code>
-                        </div>
-                      )}
-                    </div>
-
-                    {selectedToken.nuanceNote && (
-                      <div className="p-2.5 rounded-xl bg-white border border-stone-100 text-xs text-stone-600 italic">
-                        {selectedToken.nuanceNote}
-                      </div>
-                    )}
-
-                    {/* Action Bar */}
-                    <div className="pt-2 border-t border-stone-200/60 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => navigate('/hub')}
-                        className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 font-semibold"
-                      >
-                        <Split className="w-3.5 h-3.5" />
-                        <span>Mở trong Đấu Trường So Sánh</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleSaveWord(selectedToken)}
-                        disabled={savedTokens.has(selectedToken.id)}
-                        className={`inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-xl font-bold transition ${
-                          savedTokens.has(selectedToken.id)
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-2xs'
-                        }`}
-                      >
-                        {savedTokens.has(selectedToken.id) ? (
-                          <>
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Đã lưu vào kho</span>
-                          </>
-                        ) : (
-                          <>
-                            <BookmarkPlus className="w-3.5 h-3.5" />
-                            <span>Lưu từ này</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 3. Grammar Blueprint Cards */}
-              {result.grammarPoints.length > 0 && (
+              {/* 5. Grammar Blueprint Cards */}
+              {displayGrammarPoints.length > 0 && (
                 <div className="p-6 rounded-3xl bg-white border border-stone-200/90 shadow-sm space-y-4">
                   <div className="flex items-center gap-2 border-b border-stone-100 pb-3">
                     <BookOpen className="w-4 h-4 text-emerald-600" />
                     <h3 className="text-sm font-black text-stone-900">
-                      Cấu Trúc Ngữ Pháp Sử Dụng ({result.grammarPoints.length})
+                      Cấu Trúc Ngữ Pháp Sử Dụng ({displayGrammarPoints.length})
                     </h3>
                   </div>
 
                   <div className="space-y-4">
-                    {result.grammarPoints.map((gp) => {
+                    {displayGrammarPoints.map((gp) => {
                       const isSaved = savedGrammars.has(gp.id);
 
                       return (
@@ -564,6 +737,11 @@ export const AnalyzePage: React.FC = () => {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span className="text-base font-black text-stone-900">{gp.structure}</span>
+                              {gp.level && (
+                                <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
+                                  {gp.level}
+                                </span>
+                              )}
                               {gp.formula && (
                                 <span className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 font-mono text-xs font-bold border border-emerald-100">
                                   {gp.formula}
@@ -602,12 +780,33 @@ export const AnalyzePage: React.FC = () => {
                           <div className="text-xs text-stone-600 leading-relaxed bg-white p-3 rounded-xl border border-stone-100">
                             {gp.explanation}
                           </div>
+
+                          {gp.examples && gp.examples.length > 0 && (
+                            <div className="space-y-1.5 pt-1">
+                              <div className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">
+                                Ví dụ mẫu:
+                              </div>
+                              {gp.examples.map((ex, exIdx) => (
+                                <div key={exIdx} className="text-xs p-2 rounded-lg bg-white/80 border border-stone-100">
+                                  <div className="font-medium text-stone-900">{ex.original}</div>
+                                  <div className="text-stone-500 text-[11px]">{ex.translation}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 </div>
               )}
+
+              {/* Export Modal */}
+              <ExportReportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                result={result}
+              />
             </div>
           ) : (
             /* Empty State for Inspector */
@@ -616,9 +815,9 @@ export const AnalyzePage: React.FC = () => {
                 <Sparkles className="w-7 h-7" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-black text-stone-800">Bảng Soi Ngôn Ngữ Học Trực Quan</h3>
+                <h3 className="text-base font-black text-stone-800">Bảng Soi Ngôn Ngữ Học Trực Quan Đa Tầng</h3>
                 <p className="text-xs text-stone-400 max-w-sm mx-auto">
-                  Nhập câu ở khung bên trái và bấm "Bóc Tách & Phân Tích Câu" để xem kết quả dịch thuật, phân tích thành phần câu và công thức ngữ pháp.
+                  Nhập câu hoặc đoạn văn dài ở khung bên trái và bấm "Bóc Tách & Phân Tích Đa Tầng" để nhận bản dịch siêu tốc, cú pháp vĩ mô SVO, từ vựng then chốt và điểm ngữ pháp.
                 </p>
               </div>
             </div>

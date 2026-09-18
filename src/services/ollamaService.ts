@@ -10,6 +10,10 @@ import {
   MediaAnalysisResult,
   SavedComparison,
   OllamaModelInfo,
+  SentenceAnalysisChunk,
+  MacroSyntaxClause,
+  AnalysisToken,
+  AnalysisGrammarPoint,
 } from '../types';
 
 export const DEFAULT_OLLAMA_ENDPOINT = 'http://localhost:11434';
@@ -81,91 +85,79 @@ export async function fetchAvailableModels(
   }
 }
 
-/** Bi-directional deep text analysis between any pair of 11 languages */
+import { splitIntoSentences } from './sentence-splitter';
+import { analyzeFastOverview, analyzeSentenceSyntaxDeep } from './fast-linguistic-engine';
+
+/** Bi-directional fast & deep text analysis between any pair of 11 languages */
 export async function analyzeTextBiDirectional(params: {
   text: string;
   sourceLang: LanguageCode | 'auto';
   targetLang: LanguageCode;
   model: string;
   endpoint?: string;
+  onFastOverviewReady?: (overview: Partial<TextAnalysisResult>) => void;
 }): Promise<TextAnalysisResult> {
-  const { text, sourceLang, targetLang, model, endpoint = DEFAULT_OLLAMA_ENDPOINT } = params;
-  const targetInfo = getLanguageInfo(targetLang);
-  const sourceHint =
-    sourceLang === 'auto'
-      ? 'Auto-detect source language'
-      : `${getLanguageInfo(sourceLang).name} (${sourceLang})`;
+  const { text, sourceLang, targetLang, model, endpoint = DEFAULT_OLLAMA_ENDPOINT, onFastOverviewReady } = params;
 
-  const systemPrompt = `You are ARUKAS 2, a linguistic polyglot AI. Analyze the input sentence and provide a high-precision translation and structural breakdown from ${sourceHint} to ${targetInfo.name} (${targetLang}).
-Return STRICT JSON matching this format:
-{
-  "detectedSourceLang": "<ISO code of source language: vi, ja, ko, zh, ru, en, es, fr, it, de, pt>",
-  "summary": {
-    "translation": "<Natural, fluent translation in ${targetInfo.name}>",
-    "overview": "<Short explanation of overall meaning and context in ${targetInfo.name}>",
-    "tone": "<e.g., Trang trọng (Formal), Thân mật (Casual), Văn chương (Literary), Khẩu ngữ (Colloquial)>",
-    "culturalContext": "<Brief cultural or pragmatic nuance if relevant, else null>"
-  },
-  "tokens": [
-    {
-      "id": "t1",
-      "text": "<word/token>",
-      "reading": "<pronunciation transcription: Romaji for Japanese, Pinyin for Chinese, Hangul/RR for Korean, IPA for English/European, else reading>",
-      "pos": "<NOUN | VERB | ADJECTIVE | ADVERB | PRONOUN | PREPOSITION | PARTICLE | CONJUNCTION | INTERJECTION | NUMERAL | AUXILIARY | PUNCTUATION>",
-      "posLabel": "<human readable part of speech in ${targetInfo.name}>",
-      "meaning": "<precise meaning of this token in this context in ${targetInfo.name}>",
-      "lemma": "<dictionary/root form>",
-      "role": "<grammatical role in ${targetInfo.name}: Chủ ngữ, Vị ngữ, Tân ngữ, Định ngữ, v.v.>",
-      "hanViet": "<Sino-Vietnamese / Hanzi / Kanji if relevant, else null>",
-      "nuanceNote": "<any subtlety or inflection note, else null>"
-    }
-  ],
-  "grammarPoints": [
-    {
-      "id": "g1",
-      "structure": "<grammar pattern/formula in source language>",
-      "reading": "<reading of pattern if applicable>",
-      "meaning": "<meaning of the pattern in ${targetInfo.name}>",
-      "formula": "<construction rule e.g. V-te + iru, Verb + ing, Noun + preposition>",
-      "explanation": "<why and how this grammar is used in this sentence in ${targetInfo.name}>",
-      "examples": [
-        { "original": "<example sentence in source>", "translation": "<translation in ${targetInfo.name}>" }
-      ]
-    }
-  ]
-}`;
-
-  const userPrompt = `Input Text: "${text}"\nTarget Language: ${targetInfo.name} (${targetLang})`;
-
-  const res = await fetch(`${endpoint}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      stream: false,
-      format: 'json',
-      options: {
-        temperature: 0.2,
-      },
-    }),
+  // Phase 1: Rapid Global Overview & Key Terms (< 3-4s)
+  const overviewData = await analyzeFastOverview({
+    text,
+    sourceLang,
+    targetLang,
+    model,
+    endpoint,
   });
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Ollama Error (${res.status}): ${errText}`);
+  const resolvedSourceLang = overviewData.resolvedSourceLang;
+  const sentenceList = splitIntoSentences(text);
+
+  // If callback provided, notify UI immediately
+  if (onFastOverviewReady) {
+    onFastOverviewReady({
+      resolvedSourceLang,
+      summary: {
+        translation: overviewData.translation,
+        literalTranslation: overviewData.literalTranslation,
+        overview: overviewData.overview,
+        tone: overviewData.tone,
+        culturalContext: overviewData.culturalContext,
+      },
+      keyTerms: overviewData.keyTerms,
+    });
   }
 
-  const raw = await res.json();
-  const content = raw.message?.content || '{}';
-  const parsed = normalizeNFC(JSON.parse(content));
+  // Phase 2: Deep Syntax for Primary / First Sentence (< 4s)
+  const firstSentenceText = sentenceList[0] || text;
+  const firstSyntax = await analyzeSentenceSyntaxDeep({
+    sentenceText: firstSentenceText,
+    sourceLang: resolvedSourceLang,
+    targetLang,
+    model,
+    endpoint,
+  });
 
-  const resolvedSourceLang =
-    (parsed.detectedSourceLang as LanguageCode) ||
-    (sourceLang === 'auto' ? 'ja' : sourceLang);
+  // Prepare sentence chunks
+  const sentenceChunks: SentenceAnalysisChunk[] = sentenceList.map((st, idx) => {
+    if (idx === 0) {
+      return {
+        sentenceIndex: 0,
+        originalText: st,
+        translation: overviewData.sentenceTranslations[0] || overviewData.translation,
+        macroSyntax: firstSyntax.macroSyntax,
+        tokens: firstSyntax.tokens,
+        grammarPoints: firstSyntax.grammarPoints,
+        isAnalyzed: true,
+      };
+    }
+    return {
+      sentenceIndex: idx,
+      originalText: st,
+      translation: overviewData.sentenceTranslations[idx] || '',
+      tokens: [],
+      grammarPoints: [],
+      isAnalyzed: false,
+    };
+  });
 
   return {
     id: `arukas2_${Date.now()}`,
@@ -174,15 +166,35 @@ Return STRICT JSON matching this format:
     resolvedSourceLang,
     targetLang,
     summary: {
-      translation: parsed.summary?.translation || '',
-      overview: parsed.summary?.overview || '',
-      tone: parsed.summary?.tone || 'Tự nhiên (Neutral)',
-      culturalContext: parsed.summary?.culturalContext || undefined,
+      translation: overviewData.translation,
+      literalTranslation: overviewData.literalTranslation,
+      overview: overviewData.overview,
+      tone: overviewData.tone,
+      culturalContext: overviewData.culturalContext,
     },
-    tokens: parsed.tokens || [],
-    grammarPoints: parsed.grammarPoints || [],
+    tokens: firstSyntax.tokens,
+    grammarPoints: firstSyntax.grammarPoints,
+    macroSyntax: firstSyntax.macroSyntax,
+    keyTerms: overviewData.keyTerms,
+    sentences: sentenceChunks,
+    activeSentenceIndex: sentenceChunks.length > 1 ? 0 : -1,
     analyzedAt: Date.now(),
   };
+}
+
+/** Analyze a specific sentence on demand or during background stream */
+export async function analyzeSpecificSentence(params: {
+  sentenceText: string;
+  sourceLang: LanguageCode;
+  targetLang: LanguageCode;
+  model: string;
+  endpoint?: string;
+}): Promise<{
+  macroSyntax: MacroSyntaxClause[];
+  tokens: AnalysisToken[];
+  grammarPoints: AnalysisGrammarPoint[];
+}> {
+  return analyzeSentenceSyntaxDeep(params);
 }
 
 /** Multimodal Image & Document Analysis using Ollama Vision models (e.g. qwen2.5vl:7b) */
