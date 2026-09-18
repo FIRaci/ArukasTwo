@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Check,
   HelpCircle,
+  Mic,
 } from 'lucide-react';
 import { UserGuideModal } from './UserGuideModal';
 
@@ -48,6 +49,7 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { path: '/', label: t('nav_analyze'), icon: Sparkles },
+    { path: '/speech', label: t('nav_speech'), icon: Mic },
     { path: '/media', label: t('nav_media'), icon: Eye },
     { path: '/alphabets', label: t('nav_alphabets'), icon: BookOpen },
     { path: '/hub', label: t('nav_hub'), icon: Bookmark },

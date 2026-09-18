@@ -24,6 +24,7 @@ export const TRANSLATIONS: Record<UILanguage, Record<string, string>> = {
   vi: {
     app_subtitle: 'Bộ Công Cụ Ngôn Ngữ Cục Bộ',
     nav_analyze: 'Phân Tích Câu',
+    nav_speech: 'Luyện Nói & Accent',
     nav_media: 'Ảnh & Video',
     nav_alphabets: 'Bảng Chữ Cái',
     nav_hub: 'Kho Tri Thức & So Sánh',
@@ -41,6 +42,7 @@ export const TRANSLATIONS: Record<UILanguage, Record<string, string>> = {
   en: {
     app_subtitle: 'Local-First Linguistic Suite',
     nav_analyze: 'Sentence Analyzer',
+    nav_speech: 'Speech & Accent',
     nav_media: 'Image & Video Lab',
     nav_alphabets: 'Alphabets & Scripts',
     nav_hub: 'Knowledge Vault & Arena',
@@ -58,6 +60,7 @@ export const TRANSLATIONS: Record<UILanguage, Record<string, string>> = {
   ja: {
     app_subtitle: 'ローカル言語AIスイート',
     nav_analyze: '文分析・構文分解',
+    nav_speech: '発音・スピーキング',
     nav_media: '画像・動画解析',
     nav_alphabets: '文字・五十音図',
     nav_hub: '単語帳・ニュアンス比較',
@@ -75,6 +78,7 @@ export const TRANSLATIONS: Record<UILanguage, Record<string, string>> = {
   ko: {
     app_subtitle: '로컬 인공지능 언어 스위트',
     nav_analyze: '문장 분석 및 구문 분해',
+    nav_speech: '스피킹・발음',
     nav_media: '이미지 및 영상 분석',
     nav_alphabets: '문자 체계・알파벳',
     nav_hub: '단어장 및 뉘앙스 비교',
@@ -92,6 +96,7 @@ export const TRANSLATIONS: Record<UILanguage, Record<string, string>> = {
   zh: {
     app_subtitle: '本地优先多语言语言学工具箱',
     nav_analyze: '句子深度解析',
+    nav_speech: '口语与发音',
     nav_media: '图像与视频识别',
     nav_alphabets: '字母表与书写系统',
     nav_hub: '词库与语感辨析',

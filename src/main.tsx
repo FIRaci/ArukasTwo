@@ -6,6 +6,7 @@ import { SettingsProvider } from './contexts/SettingsContext';
 import './index.css';
 
 const AnalyzePage = lazy(() => import('./pages/AnalyzePage'));
+const SpeechCoachPage = lazy(() => import('./pages/SpeechCoachPage'));
 const MediaPage = lazy(() => import('./pages/MediaPage'));
 const AlphabetsPage = lazy(() => import('./pages/AlphabetsPage'));
 const HubPage = lazy(() => import('./pages/HubPage'));
@@ -78,6 +79,14 @@ root.render(
                 element={
                   <Suspense fallback={<SuspenseFallback />}>
                     <AnalyzePage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="speech"
+                element={
+                  <Suspense fallback={<SuspenseFallback />}>
+                    <SpeechCoachPage />
                   </Suspense>
                 }
               />

@@ -272,3 +272,75 @@ export interface OllamaConfig {
   isConnected: boolean;
   availableModels: OllamaModelInfo[];
 }
+
+// ============================================================
+//  SPEECH & ACCENT COACH TYPES
+// ============================================================
+
+export type RoleplayLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Native';
+
+export interface RoleplayScenario {
+  id: string;
+  title: string;
+  description: string;
+  lang: LanguageCode;
+  level: RoleplayLevel;
+  category: 'Dining' | 'Travel' | 'Career' | 'Daily' | 'Culture';
+  personaName: string;
+  personaRole: string;
+  avatar: string;
+  contextPrompt: string;
+  initialMessage: string;
+  initialMessageReading?: string;
+  initialMessageTranslation: string;
+  suggestedStarters: { text: string; reading?: string; meaning: string }[];
+}
+
+export interface SpeechMetricScore {
+  score: number; // 0 - 100
+  label: string;
+  feedback: string;
+}
+
+export interface SpeechCorrectionItem {
+  before: string;
+  after: string;
+  reason: string;
+  type: 'accent' | 'grammar' | 'vocabulary' | 'intonation';
+}
+
+export interface SpeechEvaluationResult {
+  overallScore: number; // 0 - 100
+  fluency: SpeechMetricScore;
+  accent: SpeechMetricScore;
+  intonation: SpeechMetricScore;
+  vocabulary: SpeechMetricScore;
+  strengths: string[];
+  improvements: string[];
+  corrections: SpeechCorrectionItem[];
+  aiResponse: {
+    text: string;
+    reading?: string;
+    translation: string;
+  };
+  nativeAudioText: string;
+}
+
+export interface InSpeechAssistSuggestion {
+  text: string;
+  reading?: string;
+  meaning: string;
+  formality: 'Tự nhiên (Casual)' | 'Lịch sự (Polite/Formal)' | 'Chuyên nghiệp (Business)';
+  usageTip: string;
+}
+
+export interface AccentGuideRule {
+  id: string;
+  title: string;
+  pattern: string;
+  diagram?: string;
+  mouthPosition: string;
+  vietnameseTrap: string;
+  howToFix: string;
+  examples: { word: string; reading: string; meaning: string; pitchOrTone: string }[];
+}
