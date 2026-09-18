@@ -14,10 +14,13 @@ import {
   Globe,
   ChevronDown,
   Check,
+  HelpCircle,
 } from 'lucide-react';
+import { UserGuideModal } from './UserGuideModal';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const {
     uiLang,
     setUILang,
@@ -187,6 +190,16 @@ export const Navbar: React.FC = () => {
             )}
           </button>
 
+          {/* User Guide Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setIsGuideOpen(true)}
+            title="Cẩm Nang Hướng Dẫn Sử Dụng (User Guide)"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 hover:text-blue-600 hover:bg-stone-50 transition shadow-2xs group cursor-pointer"
+          >
+            <HelpCircle className="h-4 w-4 transition-transform group-hover:scale-110" />
+          </button>
+
           {/* Settings Trigger Gear Button */}
           <button
             type="button"
@@ -220,6 +233,9 @@ export const Navbar: React.FC = () => {
           );
         })}
       </div>
+
+      {/* User Guide Modal */}
+      <UserGuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
     </header>
   );
 };

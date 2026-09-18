@@ -7,18 +7,28 @@ import {
   Info,
   Check,
   Copy,
+  GraduationCap,
+  History,
+  Lightbulb,
+  Layers,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 import { LanguageCode, SUPPORTED_LANGUAGES, getLanguageInfo } from '../types';
 import { ALPHABET_GUIDES, AlphabetCharacter, WritingSystemSection } from '../services/alphabetData';
+import { LINGUISTIC_MASTERCLASS_DATA } from '../services/alphabet-masterclass-data';
 
 export const AlphabetsPage: React.FC = () => {
   const { currentThemeConfig } = useSettings();
   const [selectedLang, setSelectedLang] = useState<LanguageCode>('vi');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedChar, setCopiedChar] = useState<string | null>(null);
+  const [showMasterclass, setShowMasterclass] = useState(true);
+  const [masterclassTab, setMasterclassTab] = useState<'rules' | 'phonetics' | 'mistakes' | 'history'>('rules');
 
   const guide = ALPHABET_GUIDES[selectedLang] || ALPHABET_GUIDES.vi;
+  const masterclass = LINGUISTIC_MASTERCLASS_DATA[selectedLang] || LINGUISTIC_MASTERCLASS_DATA.vi;
   const langInfo = getLanguageInfo(selectedLang);
 
   const handleSpeak = (text: string) => {
@@ -111,6 +121,155 @@ export const AlphabetsPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* ── LINGUISTIC MASTERCLASS GUIDE (CẨM NANG CHUYÊN SÂU) ── */}
+        <div className="p-5 rounded-2xl bg-gradient-to-br from-stone-50 via-white to-blue-50/30 border border-stone-200/90 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between gap-3 border-b border-stone-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                <GraduationCap className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-stone-900 tracking-tight">
+                  Cẩm Nang Ngôn Ngữ & Phát Âm Chuyên Sâu ({langInfo.name})
+                </h3>
+                <p className="text-[11px] text-stone-500">
+                  Phân tích cấu trúc âm vị, quy tắc ghép vần, kỹ thuật khẩu hình và mẹo tránh lỗi phổ biến.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowMasterclass(!showMasterclass)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-stone-600 hover:bg-stone-100 transition border border-stone-200"
+            >
+              <span>{showMasterclass ? 'Thu gọn' : 'Xem cẩm nang'}</span>
+              {showMasterclass ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {showMasterclass && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+                <button
+                  type="button"
+                  onClick={() => setMasterclassTab('rules')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                    masterclassTab === 'rules'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Quy Tắc Cấu Trúc ({masterclass.structuralRules.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMasterclassTab('phonetics')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                    masterclassTab === 'phonetics'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                  }`}
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                  <span>Kỹ Thuật Phát Âm ({masterclass.phoneticTips.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMasterclassTab('mistakes')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                    masterclassTab === 'mistakes'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                  }`}
+                >
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  <span>Mẹo & Lỗi Hay Mắc ({masterclass.learnerMistakesAndMnemonics.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMasterclassTab('history')}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
+                    masterclassTab === 'history'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-50'
+                  }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>Nguồn Gốc Lịch Sử</span>
+                </button>
+              </div>
+
+              {/* Tab Content Panes */}
+              <div className="p-4 rounded-xl bg-white border border-stone-200/80 text-xs leading-relaxed text-stone-700 space-y-2.5">
+                {masterclassTab === 'rules' && (
+                  <div className="space-y-2">
+                    <div className="font-bold text-stone-900 text-xs uppercase tracking-wider text-blue-700">
+                      Quy tắc tạo âm tiết & Cú pháp chính tả:
+                    </div>
+                    <ul className="space-y-2 list-disc list-inside">
+                      {masterclass.structuralRules.map((rule, rIdx) => (
+                        <li key={rIdx} className="text-stone-700 leading-normal">
+                          <span className="font-medium text-stone-900">{rule.split(':')[0]}:</span>
+                          {rule.includes(':') ? rule.substring(rule.indexOf(':') + 1) : rule}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {masterclassTab === 'phonetics' && (
+                  <div className="space-y-2">
+                    <div className="font-bold text-stone-900 text-xs uppercase tracking-wider text-emerald-700">
+                      Hướng dẫn khẩu hình, cao độ & ngữ điệu:
+                    </div>
+                    <ul className="space-y-2 list-disc list-inside">
+                      {masterclass.phoneticTips.map((tip, tIdx) => (
+                        <li key={tIdx} className="text-stone-700 leading-normal">
+                          <span className="font-medium text-stone-900">{tip.split(':')[0]}:</span>
+                          {tip.includes(':') ? tip.substring(tip.indexOf(':') + 1) : tip}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {masterclassTab === 'mistakes' && (
+                  <div className="space-y-2">
+                    <div className="font-bold text-stone-900 text-xs uppercase tracking-wider text-amber-700">
+                      Mẹo học nhanh & Các bẫy phát âm người học hay mắc:
+                    </div>
+                    <ul className="space-y-2 list-disc list-inside">
+                      {masterclass.learnerMistakesAndMnemonics.map((item, mIdx) => (
+                        <li key={mIdx} className="text-stone-700 leading-normal">
+                          <span className="font-medium text-stone-900">{item.split(':')[0]}:</span>
+                          {item.includes(':') ? item.substring(item.indexOf(':') + 1) : item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {masterclassTab === 'history' && (
+                  <div className="space-y-2">
+                    <div className="font-bold text-stone-900 text-xs uppercase tracking-wider text-purple-700">
+                      Bối cảnh văn hóa & Lịch sử hình thành văn tự:
+                    </div>
+                    <p className="text-stone-700 leading-relaxed font-normal">
+                      {masterclass.originAndHistory}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* ── ALPHABET SECTIONS ── */}
         <div className="space-y-6 pt-2">
